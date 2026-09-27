@@ -1,0 +1,52 @@
+# Copy to .github/workflows/ci.yml. Needs no secrets and no configuration.
+#
+# Deliberately installs NO solver and NO licence. That is the point: this job
+# is the "clean machine" in Part 1 rule 6, and a test that needs a licence to
+# pass belongs somewhere else.
+#
+# Before the first push, check `ruff check .` locally. An archived original
+# (Archetype P) must not be linted -- it is never corrected -- and notebooks
+# are narrative, not modules. Scope it in pyproject.toml rather than deleting
+# the step:
+#
+#     [tool.ruff]
+#     extend-exclude = ["archive", "notebooks"]
+#
+# A CI run that is red on day one gets switched off by the end of the week.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"   # match what actually ran
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # Part 1 rule 3: a version range says what the code tolerates, not what
+      # ran. This makes the CI log the resolved record, dated, at no cost.
+      - name: Record what actually ran
+        run: |
+          python --version
+          pip freeze
+
+      - name: Smoke tests
+        run: pytest -q
+
+      # After the tests, so a lint failure never masks a real one.
+      - name: Lint
+        run: ruff check .

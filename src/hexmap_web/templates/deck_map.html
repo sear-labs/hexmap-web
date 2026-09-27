@@ -1,0 +1,407 @@
+<title>__TITLE__</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  color-scheme: dark;
+  --ground: #0d0f14;
+  --glass: rgba(17, 19, 26, 0.9);
+  --glass-edge: rgba(255, 255, 255, 0.09);
+  --ink: #eef0f3;
+  --ink-2: #b6bcc5;
+  --muted: #8b939e;
+  --accent: #f98e09;
+  --accent-ink: #1a1206;
+  --warn: #f5c46b;
+  --ui: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --num: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 14px/1.45 var(--ui); }
+#app { position: relative; height: 100%; min-height: 520px; overflow: hidden; }
+#map { position: absolute; inset: 0; background: var(--ground); }
+.maplibregl-map { position: absolute; overflow: hidden; }
+.maplibregl-canvas { position: absolute; left: 0; top: 0; }
+.maplibregl-canvas-container.maplibregl-interactive { cursor: grab; }
+.maplibregl-canvas-container.maplibregl-interactive:active { cursor: grabbing; }
+.card { background: var(--glass); border: 1px solid var(--glass-edge); border-radius: 10px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35); backdrop-filter: blur(6px); }
+#panel { position: absolute; top: 16px; left: 16px; width: 330px; max-height: calc(100% - 32px);
+         overflow-y: auto; padding: 16px 16px 12px; display: grid; gap: 13px; z-index: 3; }
+h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { margin: 2px 0 0; color: var(--ink-2); font-size: 12.5px; }
+.label { color: var(--muted); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 5px; display: block; }
+.seg { display: flex; background: rgba(255, 255, 255, 0.05); border-radius: 7px; padding: 3px; gap: 3px; }
+.seg button { flex: 1; border: 0; background: transparent; color: var(--ink-2); font: 500 12.5px var(--ui);
+              padding: 6px 4px; border-radius: 5px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+select { width: 100%; background: rgba(255, 255, 255, 0.06); color: var(--ink); border: 1px solid var(--glass-edge);
+         border-radius: 7px; padding: 6px 8px; font: 500 13px var(--ui); }
+select option { background: #1a1d24; }
+button:focus-visible, .row:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--ink-2); }
+.checks label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+input[type="checkbox"] { accent-color: var(--accent); }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.stat { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; font-size: 12.5px; }
+.n { font-family: var(--num); font-variant-numeric: tabular-nums; }
+.stat .n { color: var(--ink); text-align: right; }
+.stat .k { color: var(--ink-2); }
+.rows { display: grid; gap: 1px; }
+.row { display: grid; grid-template-columns: 6.2em 1fr 4.6em; align-items: center; gap: 8px; padding: 4px 6px;
+       border-radius: 5px; cursor: pointer; font-size: 12.5px; }
+.row:hover, .row.on { background: rgba(255, 255, 255, 0.07); }
+.row .who { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .n { text-align: right; }
+.bar { display: flex; height: 8px; border-radius: 2px; overflow: hidden; gap: 1px; }
+.bar i { display: block; height: 100%; }
+.keys { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: var(--muted); }
+.keys span { display: inline-flex; align-items: center; gap: 5px; }
+.keys b { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+#legend { position: absolute; left: 362px; bottom: 16px; padding: 10px 14px 8px; width: 330px; z-index: 3; }
+#legend canvas { width: 100%; height: 12px; display: block; border-radius: 2px; }
+#ticks { position: relative; height: 16px; margin-top: 4px; font: 10.5px var(--num); color: var(--ink-2); }
+#ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+#ticks span:first-child { transform: none; }
+#ticks span:last-child { transform: translateX(-100%); }
+#legend .t { font-size: 11.5px; color: var(--ink-2); margin-bottom: 6px; }
+.foot { font-size: 10.5px; color: var(--muted); line-height: 1.4; margin: 0; }
+#note { position: absolute; right: 64px; top: 16px; padding: 8px 12px; font-size: 12px; color: var(--ink-2);
+        max-width: 280px; z-index: 3; }
+#tools { position: absolute; right: 16px; top: 16px; display: grid; gap: 6px; z-index: 4; }
+#tools button { width: 38px; height: 38px; border-radius: 9px; border: 1px solid var(--glass-edge); background: var(--glass);
+                color: var(--ink); font: 600 16px var(--ui); cursor: pointer; display: grid; place-items: center; padding: 0; }
+#tools button:hover { border-color: rgba(255, 255, 255, 0.25); }
+#compass svg { width: 26px; height: 26px; transition: transform 0.1s linear; }
+#tools .tiny { font-size: 11px; font-weight: 700; letter-spacing: 0.02em; }
+#info { position: absolute; right: 16px; bottom: 16px; width: 320px; max-height: calc(100% - 280px); overflow-y: auto;
+        padding: 14px 16px; z-index: 3; display: grid; gap: 9px; }
+#info h2 { margin: 0; font-size: 15px; font-weight: 700; padding-right: 28px; }
+#info .kind { color: var(--muted); font-size: 11.5px; margin-top: -6px; }
+#info .big { font: 500 22px var(--num); }
+#info .grid { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; font-size: 12.5px; }
+#info .grid .k { color: var(--ink-2); }
+#info .grid .n { text-align: right; }
+#info .where { font-size: 12px; color: var(--ink-2); display: grid; gap: 2px; }
+#info .where b { color: var(--ink); font-weight: 600; }
+#info .warn { font-size: 11.5px; color: var(--warn); }
+#close { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border: 0; border-radius: 6px;
+         background: transparent; color: var(--ink-2); font-size: 18px; cursor: pointer; }
+#close:hover { background: rgba(255, 255, 255, 0.08); }
+@media (max-width: 760px) {
+  #panel { width: auto; right: 64px; max-height: 44%; }
+  #legend { left: 16px; right: 16px; width: auto; bottom: 16px; }
+  #info { left: 16px; right: 16px; width: auto; bottom: 90px; max-height: 40%; }
+  #note { right: 64px; top: auto; bottom: 90px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div id="app">
+  <div id="map" role="img" aria-label="3D hexagon map"></div>
+  <div id="tools" aria-label="Map tools">
+    <button type="button" id="compass" title="Reset to north (double-click: north and flat)" aria-label="Reset to north">
+      <svg viewBox="0 0 26 26" aria-hidden="true"><path d="M13 2 L17.5 13 L13 11.5 L8.5 13 Z" fill="#f98e09"/>
+        <path d="M13 24 L8.5 13 L13 14.5 L17.5 13 Z" fill="#b6bcc5"/>
+        <text x="13" y="8.2" text-anchor="middle" font-size="5.5" font-weight="700" fill="#1a1206" font-family="Public Sans, sans-serif">N</text></svg>
+    </button>
+    <button type="button" id="zin" title="Zoom in" aria-label="Zoom in">+</button>
+    <button type="button" id="zout" title="Zoom out" aria-label="Zoom out">&minus;</button>
+    <button type="button" id="tilt" class="tiny" title="Switch between tilted 3D and flat 2D" aria-label="Toggle 3D tilt">2D</button>
+    <button type="button" id="home" title="Fit the whole area" aria-label="Fit the whole area">
+      <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+    </button>
+  </div>
+
+  <aside id="panel" class="card" aria-label="Map controls">
+    <div><h1 id="title"></h1><p class="sub" id="sub"></p></div>
+    <div><span class="label">Height and colour</span><div class="seg" id="seg-metric"></div></div>
+    <div id="view-box"><span class="label">Area</span><div class="seg" id="seg-view"></div></div>
+    <div id="pick-box"><label class="label" for="pick">Click to inspect</label><select id="pick"></select></div>
+    <div id="show-box"><span class="label">Show</span><div class="checks" id="checks"></div></div>
+    <div><span class="label">Basemap</span>
+      <div class="seg" id="seg-base">
+        <button type="button" data-v="dark" aria-pressed="true">Dark</button>
+        <button type="button" data-v="light" aria-pressed="false">Light</button>
+      </div></div>
+    <div><label class="label" for="exag">Height exaggeration: <span id="exag-v">1.0×</span></label>
+      <input type="range" id="exag" min="0.2" max="3" step="0.1" value="1"></div>
+    <div id="summary-box"><span class="label" id="summary-title"></span><div class="stat" id="summary"></div></div>
+    <div id="rank-box">
+      <span class="label" id="rank-title"></span>
+      <div class="seg" id="seg-rank" style="margin-bottom:6px"></div>
+      <div class="rows" id="rows"></div>
+      <div class="keys" id="keys" style="margin-top:8px"></div>
+    </div>
+    <p class="foot"><span id="foot"></span> <span id="credit"></span> Right-drag or Ctrl-drag to tilt and rotate.</p>
+  </aside>
+
+  <div id="legend" class="card"><div class="t" id="legend-t"></div>
+    <canvas id="ramp" width="600" height="12"></canvas><div id="ticks"></div></div>
+  <div id="info" class="card" hidden aria-live="polite"></div>
+  <div id="note" class="card" hidden>The basemap can't load in this viewer, so the map is drawn on a
+    plain ground with its own roads and water.</div>
+</div>
+
+<script src="__MAPLIBRE__"></script>
+<script src="__DECK_GL__"></script>
+<script>
+const D = /*__DATA__*/null;
+const BASEMAPS = __BASEMAPS__;
+const FALLBACK_STYLE = { version: 8, sources: {}, layers: [
+  { id: "ground", type: "background", paint: { "background-color": "#0d0f14" } }] };
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const METRIC = Object.fromEntries(D.metrics.map((m) => [m.key, m]));
+const VIEW = Object.fromEntries(D.views.map((v) => [v.key, v]));
+const state = {
+  view: D.views[0].key, metric: D.metrics[0].key, base: "dark", exag: 1, pick: "cell",
+  show: Object.fromEntries([["roads", D.has.roads], ["water", false], ["places", D.has.places],
+    ...D.outline_layers.map((o) => [o.key, o.show])]),
+  rank: D.rankings.length ? D.rankings[0].key : null, hi: null, sel: null,
+};
+const light = () => state.base === "light";
+document.title = D.title;
+
+function pad() {
+  const w = $("#map").clientWidth || innerWidth, h = $("#map").clientHeight || innerHeight;
+  if (w < 760) return { top: Math.min(h * 0.45, 260), bottom: 70, left: 16, right: 60 };
+  return { top: 40, bottom: 90, left: Math.min(360, w * 0.4), right: 70 };
+}
+const centre = (b) => [(b[0][0] + b[1][0]) / 2, (b[0][1] + b[1][1]) / 2];
+let fallback = false;
+const map = new maplibregl.Map({ container: "map", style: FALLBACK_STYLE, center: centre(D.views[0].bounds),
+  zoom: 9.6, pitch: 52, bearing: -16, maxPitch: 75, attributionControl: false });
+function frame(bounds, opts = {}) {
+  try { map.fitBounds(bounds, { padding: pad(), pitch: map.getPitch() > 5 ? 52 : 0, ...opts }); }
+  catch (e) { map.jumpTo({ center: centre(bounds), zoom: 9.6 }); }
+}
+// Fetch the basemap style directly: if that fails (offline, or a viewer that blocks outside
+// requests) keep the plain ground, switch the water on, and say so.
+async function setBasemap(name) {
+  let style = null;
+  try { const r = await fetch(BASEMAPS[name]); if (r.ok) style = await r.json(); } catch (e) { style = null; }
+  if (style) { map.setStyle(style); fallback = false; }
+  else {
+    map.setStyle(FALLBACK_STYLE); fallback = true;
+    if (D.has.water) { state.show.water = true; const c = $("#o-water"); if (c) c.checked = true; }
+    render(false);
+  }
+  $("#note").hidden = !fallback;
+  $("#credit").textContent = fallback ? "" : D.credit;
+}
+
+// ------------------------------------------------------------ cards and tooltips
+const bar = (shares, scale = 1) => !shares || !D.split ? "" : `<div class="bar">${shares.map((s, i) => s > 0
+  ? `<i style="width:${(s * 100 * scale).toFixed(1)}%;background:${D.split.colours[i]}" title="${esc(D.split.labels[i])} ${(s * 100).toFixed(0)}%"></i>` : "").join("")}</div>`;
+const headline = (p) => p.blank ? esc(D.blank_label) : `${esc(p.t[state.metric])} ${esc(METRIC[state.metric].noun)}`;
+
+function tooltip({ object, layer }) {
+  if (!object || !layer) return null;
+  const style = { background: "rgba(17,19,26,0.95)", color: "#eef0f3", border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: "8px", padding: "8px 10px", maxWidth: "260px", font: "13px/1.45 var(--ui)" };
+  if (layer.id === "cells") {
+    const p = object.properties;
+    const others = D.metrics.filter((m) => m.key !== state.metric).map((m) => `${esc(p.t[m.key])} ${esc(m.noun)}`).join("<br>");
+    const where = p.w.slice(0, 2).map((w) => w[1]).filter(Boolean).map(esc).join(" · ");
+    return { style, html: `<b>${headline(p)}</b>${others ? "<br>" + others : ""}<br><span style="color:#8b939e">${where ? where + " · " : ""}click for details</span>` };
+  }
+  if (layer.id === "areas") {
+    const a = object.a;
+    return { style, html: `<b>${esc(a.name)}</b><br>${esc(a.h[0])} ${esc(a.h[1])}` };
+  }
+  return null;
+}
+
+function showInfo() {
+  const s = state.sel, box = $("#info");
+  if (!s) { box.hidden = true; return; }
+  let html;
+  if (s.type === "cell") {
+    const p = s.p;
+    const rows = D.metrics.map((m) => [m.label, p.t[m.key]]).concat(D.cell_fields.map((l, i) => [l, p.f[i]]));
+    html = `<h2>${headline(p)}</h2><div class="kind">One ${esc(VIEW[state.view].noun)}</div>
+      <div class="grid">${rows.map(([k, v]) => `<span class="k">${esc(k)}</span><span class="n">${esc(v)}</span>`).join("")}</div>
+      ${p.s ? `<div><span class="label">${esc(D.split.title)}</span>${bar(p.s)}</div>` : ""}
+      ${p.w.length ? `<div class="where">${p.w.map((w) => `<span>${esc(w[0])}: ${w[1] ? `<b>${esc(w[1])}</b> (${Math.round(w[2] * 100)}% of the ${esc(VIEW[state.view].noun.split(" ").pop())})` : "<b>none</b>"}</span>`).join("")}</div>` : ""}`;
+  } else {
+    const a = s.a;
+    html = `<h2>${esc(a.name)}</h2><div class="kind">${esc(a.kind)}</div>
+      <div><div class="big">${esc(a.h[0])}</div><div class="kind" style="margin-top:0">${esc(a.h[1])}</div></div>
+      <div class="grid">${a.f.map(([k, v]) => `<span class="k">${esc(k)}</span><span class="n">${esc(v)}</span>`).join("")}</div>
+      ${a.s ? `<div><span class="label">${esc(D.split.title)}</span>${bar(a.s)}</div>` : ""}
+      ${a.notes.map((n) => `<div class="warn">${esc(n)}</div>`).join("")}`;
+  }
+  box.innerHTML = `<button type="button" id="close" aria-label="Close">×</button>${html}`;
+  box.hidden = false;
+  $("#close").addEventListener("click", () => { state.sel = null; showInfo(); render(false); });
+}
+
+function onClick({ object, layer }) {
+  if (!object || !layer) return;
+  if (layer.id === "cells") state.sel = { type: "cell", p: object.properties };
+  else if (layer.id === "areas") state.sel = { type: "area", a: object.a };
+  showInfo(); render(false);
+}
+const overlay = new deck.MapboxOverlay({ interleaved: false, layers: [], getTooltip: tooltip, onClick });
+map.addControl(overlay);
+
+// ------------------------------------------------------------ layers
+function text(id, data, pos, txt, colour, size = 13, weight = 700) {
+  return new deck.TextLayer({ id, data, getPosition: pos, getText: txt, getSize: size, sizeUnits: "pixels",
+    fontFamily: "Public Sans, system-ui, sans-serif", fontWeight: weight, getColor: colour, outlineWidth: 4,
+    outlineColor: light() ? [255, 255, 255, 230] : [13, 15, 20, 235], fontSettings: { sdf: true },
+    parameters: { depthCompare: "always" }, updateTriggers: { getColor: [state.base, state.hi], outlineColor: state.base } });
+}
+const ringsOf = (items) => items.flatMap((a) => a.rings.map((r) => ({ r, a })));
+
+function layers() {
+  const v = VIEW[state.view], m = state.metric, mx = v.max[m] || 1, tall = v.height * state.exag;
+  const line = light() ? [24, 26, 32] : [226, 230, 236];
+  const inspecting = state.pick !== "cell";
+  const L = [];
+  if (state.show.water) L.push(new deck.PolygonLayer({ id: "water", data: D.water, getPolygon: (r) => r,
+    filled: true, stroked: false, getFillColor: light() ? [170, 205, 235, 255] : [28, 52, 84, 255],
+    updateTriggers: { getFillColor: state.base } }));
+  if (state.show.roads) {
+    L.push(new deck.PathLayer({ id: "roads", data: D.roads, getPath: (r) => r.p, widthUnits: "pixels",
+      getWidth: (r) => (r.major ? 2.2 : 1.1),
+      getColor: (r) => light() ? [70, 76, 88, r.major ? 230 : 150] : [205, 212, 222, r.major ? 210 : 120],
+      parameters: { depthCompare: "always" }, updateTriggers: { getColor: state.base } }));
+    L.push(text("road-labels", D.road_labels, (d) => d.at, (d) => d.name, light() ? [40, 44, 52, 255] : [230, 234, 240, 255], 11, 600));
+  }
+  L.push(new deck.GeoJsonLayer({ id: "cells", data: v.cells, extruded: true, filled: true, stroked: false,
+    wireframe: true, getLineColor: light() ? [0, 0, 0, 28] : [255, 255, 255, 34],
+    pickable: !inspecting, autoHighlight: !inspecting, highlightColor: [249, 142, 9, 170], opacity: inspecting ? 0.35 : 1,
+    getElevation: (f) => (f.properties.blank || f.properties.v[m] == null ? 0 : (f.properties.v[m] / mx) * tall),
+    getFillColor: (f) => f.properties.blank ? (light() ? [200, 199, 194, 230] : [74, 77, 84, 230]) : f.properties.c[m],
+    material: { ambient: 0.55, diffuse: 0.5, shininess: 20, specularColor: [30, 30, 30] },
+    transitions: { getElevation: { duration: 650 } },
+    updateTriggers: { getElevation: [m, state.exag, state.view], getFillColor: [m, state.base], getLineColor: state.base } }));
+  if (state.sel && state.sel.type === "cell") {
+    const hit = v.cells.features.find((f) => f.properties === state.sel.p);
+    if (hit) L.push(new deck.PathLayer({ id: "cell-sel", data: [hit.geometry.coordinates[0]], getPath: (p) => p,
+      widthUnits: "pixels", getWidth: 3, getColor: [249, 142, 9, 255], parameters: { depthCompare: "always" } }));
+  }
+  L.push(new deck.PathLayer({ id: "frame", data: v.frame, getPath: (p) => p, widthUnits: "pixels", getWidth: 1.2,
+    getColor: [...line, 150], parameters: { depthCompare: "always" }, updateTriggers: { getColor: state.base } }));
+  if (inspecting) {
+    const items = D.areas[state.pick], sel = state.sel && state.sel.type === "area" ? state.sel.a.name : null;
+    L.push(new deck.PolygonLayer({ id: "areas", data: ringsOf(items), getPolygon: (o) => o.r, pickable: true,
+      autoHighlight: true, highlightColor: [249, 142, 9, 70], filled: true, stroked: false,
+      getFillColor: (o) => (o.a.name === sel ? [249, 142, 9, 90] : [255, 255, 255, 6]), updateTriggers: { getFillColor: sel } }));
+    L.push(new deck.PathLayer({ id: "area-lines", data: ringsOf(items), getPath: (o) => o.r, widthUnits: "pixels",
+      getWidth: (o) => (o.a.name === sel ? 3 : 1.1), getColor: (o) => (o.a.name === sel ? [249, 142, 9, 255] : [...line, 170]),
+      parameters: { depthCompare: "always" }, updateTriggers: { getWidth: sel, getColor: [sel, state.base] } }));
+  }
+  for (const o of D.outline_layers) {
+    if (!state.show[o.key] || state.pick === o.key) continue;
+    const colour = light() ? o.light : o.dark, on = (d) => state.hi === `${o.key}|${d.name}`;
+    L.push(new deck.PathLayer({ id: `o-${o.key}`, data: D.outlines[o.key].flatMap((d) => d.rings.map((r) => ({ r, d }))),
+      getPath: (x) => x.r, widthUnits: "pixels", getWidth: (x) => (on(x.d) ? 3.2 : 1.2),
+      getColor: (x) => (on(x.d) ? [249, 142, 9, 255] : [...colour, 210]),
+      parameters: { depthCompare: "always" }, updateTriggers: { getWidth: state.hi, getColor: [state.hi, state.base] } }));
+    L.push(text(`ol-${o.key}`, D.outlines[o.key], (d) => d.at, (d) => d.short, (d) => (on(d) ? [249, 142, 9, 255] : [...colour, 255])));
+  }
+  if (state.show.places && v.places) L.push(text("places", D.places, (c) => c.at, (c) => c.name, [...line, 255], 13, 600));
+  return L;
+}
+
+// ------------------------------------------------------------ panel
+function drawLegend() {
+  const lg = METRIC[state.metric].legend;
+  const c = $("#ramp"), g = c.getContext("2d"), grad = g.createLinearGradient(0, 0, c.width, 0);
+  lg.stops.forEach((s, i) => grad.addColorStop(i / (lg.stops.length - 1), s));
+  g.fillStyle = grad; g.fillRect(0, 0, c.width, c.height);
+  $("#ticks").innerHTML = lg.ticks.map((t, i) => `<span style="left:${(t * 100).toFixed(2)}%">${esc(lg.labels[i])}</span>`).join("");
+  $("#legend-t").textContent = `${METRIC[state.metric].label}: darker is higher (log scale); height is proportional`;
+}
+
+function drawRows() {
+  const R = D.rankings.find((r) => r.key === state.rank);
+  if (!R) return;
+  $("#rank-title").textContent = R.title;
+  const max = Math.max(...R.rows.map((r) => r.value || 0)) || 1;
+  $("#rows").innerHTML = R.rows.map((r) => {
+    const parts = r.parts ? r.parts.map((x) => (x || 0) / max) : [(r.value || 0) / max];
+    const cols = r.parts && D.split ? D.split.colours : ["#8b939e"];
+    return `<div class="row${state.hi === `${R.key}|${r.name}` ? " on" : ""}" tabindex="0" data-k="${esc(r.name)}" title="${esc(r.name)}">
+      <span class="who">${esc(r.short)}</span><span class="bar">${parts.map((s, i) => s > 0 ? `<i style="width:${(s * 100).toFixed(1)}%;background:${cols[i % cols.length]}"></i>` : "").join("")}</span>
+      <span class="n">${esc(r.text)}</span></div>`;
+  }).join("");
+  $("#rows").querySelectorAll(".row").forEach((el) => {
+    const name = el.dataset.k, k = `${R.key}|${name}`;
+    el.addEventListener("mouseenter", () => { state.hi = k; render(false); });
+    el.addEventListener("mouseleave", () => { state.hi = null; render(false); });
+    el.addEventListener("focus", () => { state.hi = k; render(false); });
+    el.addEventListener("click", () => goTo(R.key, name));
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter") goTo(R.key, name); });
+  });
+}
+
+function goTo(key, name) {
+  const o = D.outlines[key].find((x) => x.name === name);
+  const a = Object.values(D.areas).flat().find((x) => x.name === name);
+  if (a) { state.sel = { type: "area", a }; showInfo(); }
+  const pts = o.rings.flat();
+  frame([[Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1]))],
+         [Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))]], { duration: 1200 });
+  render(false);
+}
+
+function render(rows = true) { overlay.setProps({ layers: layers() }); drawLegend(); if (rows) drawRows(); }
+
+function seg(id, items, field, after) {
+  const box = $(`#${id}`);
+  if (items) box.innerHTML = items.map(([v, l]) => `<button type="button" data-v="${esc(v)}" aria-pressed="${v === state[field]}">${esc(l)}</button>`).join("");
+  box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    state[field] = b.dataset.v;
+    box.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    if (after) after();
+    render();
+  }));
+}
+
+$("#title").textContent = D.title;
+const setSub = () => { $("#sub").textContent = `${VIEW[state.view].description}. Hover a column; click one for details.`; };
+setSub();
+seg("seg-metric", D.metrics.map((m) => [m.key, m.label]), "metric");
+seg("seg-view", D.views.map((v) => [v.key, v.label]), "view", () => {
+  setSub(); if (state.sel && state.sel.type === "cell") { state.sel = null; showInfo(); }
+  frame(VIEW[state.view].bounds, { duration: 1400 });
+});
+$("#view-box").hidden = D.views.length < 2;
+seg("seg-base", null, "base", () => setBasemap(state.base));
+$("#pick-box").hidden = !D.layers.length;
+$("#pick").innerHTML = `<option value="cell">Hexagons</option>` + D.layers.map((l) => `<option value="${esc(l.key)}">${esc(l.label)}</option>`).join("");
+$("#pick").addEventListener("change", (e) => { state.pick = e.target.value; state.sel = null; showInfo(); render(); });
+const checks = [["roads", "Highways", D.has.roads], ["water", "Water", D.has.water], ["places", "Place labels", D.has.places]]
+  .filter((c) => c[2]).concat(D.outline_layers.map((o) => [o.key, o.label, true]));
+$("#checks").innerHTML = checks.map(([k, l]) => `<label><input type="checkbox" id="o-${esc(k)}"${state.show[k] ? " checked" : ""}> ${esc(l)}</label>`).join("");
+$("#show-box").hidden = !checks.length;
+for (const [k] of checks) $(`#o-${k}`).addEventListener("change", (e) => { state.show[k] = e.target.checked; render(); });
+$("#exag").addEventListener("input", (e) => { state.exag = Number(e.target.value); $("#exag-v").textContent = `${state.exag.toFixed(1)}×`; render(false); });
+$("#summary-box").hidden = !D.summary.length;
+$("#summary-title").textContent = D.summary_title;
+$("#summary").innerHTML = D.summary.map(([k, v]) => `<span class="k">${esc(k)}</span><span class="n">${esc(v)}</span>`).join("");
+$("#rank-box").hidden = !D.rankings.length;
+if (D.rankings.length > 1) seg("seg-rank", D.rankings.map((r) => [r.key, D.outline_layers.find((o) => o.key === r.key).label]), "rank");
+else $("#seg-rank").hidden = true;
+$("#keys").innerHTML = D.split ? D.split.labels.map((g, i) => `<span><b style="background:${D.split.colours[i]}"></b>${esc(g)}</span>`).join("") : "";
+$("#foot").textContent = D.footnote;
+$("#credit").textContent = D.credit;
+
+const needle = $("#compass svg");
+const syncTools = () => { needle.style.transform = `rotate(${-map.getBearing()}deg)`; $("#tilt").textContent = map.getPitch() > 5 ? "2D" : "3D"; };
+map.on("rotate", syncTools); map.on("pitch", syncTools);
+$("#compass").addEventListener("click", () => map.easeTo({ bearing: 0, duration: 700 }));
+$("#compass").addEventListener("dblclick", () => map.easeTo({ bearing: 0, pitch: 0, duration: 700 }));
+$("#zin").addEventListener("click", () => map.zoomIn());
+$("#zout").addEventListener("click", () => map.zoomOut());
+$("#tilt").addEventListener("click", () => map.easeTo({ pitch: map.getPitch() > 5 ? 0 : 52, duration: 700 }));
+$("#home").addEventListener("click", () => frame(VIEW[state.view].bounds, { bearing: -16, duration: 1000 }));
+map.on("load", () => { frame(VIEW[state.view].bounds, { bearing: -16, duration: 0 }); syncTools(); render(); });
+if (document.fonts) document.fonts.ready.then(() => render(false));
+setBasemap("dark");
+render();
+</script>

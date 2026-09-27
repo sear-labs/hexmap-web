@@ -1,0 +1,376 @@
+<title>__TITLE__</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  --ground: #f4f5f7; --surface: #ffffff; --map-ground: #fbfbfc; --ink: #15171c; --ink-2: #4b515c;
+  --muted: #7a818d; --hair: #dfe2e8; --pill: #15171c; --pill-ink: #ffffff; --line: #15171c;
+  --halo: #ffffff; --road: #5d6573; --water: #b9d3ea; --blank: #d9d8d3; --blank-hatch: #9a9993;
+  --hi: #e8590c; --warn: #9a5b00;
+  --ui: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --num: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #0f1115; --surface: #171a20; --map-ground: #1c2027; --ink: #eceef2; --ink-2: #b3b9c3;
+    --muted: #858c98; --hair: #2a2f38; --pill: #eceef2; --pill-ink: #0f1115; --line: #e6e9ee;
+    --halo: #0f1115; --road: #aab2bf; --water: #26415f; --blank: #3a3e46; --blank-hatch: #6b717c;
+    --hi: #ff8a3d; --warn: #f5c46b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #0f1115; --surface: #171a20; --map-ground: #1c2027; --ink: #eceef2; --ink-2: #b3b9c3;
+  --muted: #858c98; --hair: #2a2f38; --pill: #eceef2; --pill-ink: #0f1115; --line: #e6e9ee;
+  --halo: #0f1115; --road: #aab2bf; --water: #26415f; --blank: #3a3e46; --blank-hatch: #6b717c;
+  --hi: #ff8a3d; --warn: #f5c46b;
+}
+[hidden] { display: none !important; }
+body { background: var(--ground); color: var(--ink); font: 14px/1.5 var(--ui); padding-inline: 16px; }
+.wrap { max-width: 1340px; margin: 0 auto; padding-block: 20px 28px; display: grid; gap: 16px; }
+header { display: grid; gap: 4px; }
+h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.015em; text-wrap: balance; }
+.lede { margin: 0; color: var(--ink-2); max-width: 72ch; }
+.strip { display: flex; flex-wrap: wrap; gap: 8px 28px; margin-top: 8px; }
+.strip div { display: grid; }
+.strip .k { font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.strip .v { font: 500 20px var(--num); font-variant-numeric: tabular-nums; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
+.map { position: relative; background: var(--map-ground); border: 1px solid var(--hair); border-radius: 10px; overflow: hidden; }
+.map > svg { width: 100%; height: min(78vh, 820px); display: block; touch-action: none; cursor: grab; user-select: none; }
+.map > svg.dragging { cursor: grabbing; }
+.map path, .map line { vector-effect: non-scaling-stroke; }
+.cells path { stroke: var(--map-ground); stroke-width: 0.5; }
+.cells path:hover { stroke: var(--ink); stroke-width: 1.6; }
+.cells path.sel { stroke: var(--hi); stroke-width: 3; }
+.water path { fill: var(--water); stroke: none; }
+.roads path { fill: none; stroke: var(--road); stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.roads path.major { stroke-width: 2; }
+.roads path.minor { stroke-width: 0.9; opacity: 0.7; }
+.frame { fill: none; stroke: var(--muted); stroke-width: 1; pointer-events: none; }
+.outline { fill: none; stroke-width: 1.3; stroke-linejoin: round; pointer-events: none; }
+.outline.on { stroke: var(--hi) !important; stroke-width: 3; }
+.areas path { fill: rgba(0, 0, 0, 0); stroke: var(--line); stroke-width: 1.1; cursor: pointer; }
+.areas path:hover { fill: color-mix(in srgb, var(--hi) 18%, transparent); }
+.areas path.sel { fill: color-mix(in srgb, var(--hi) 28%, transparent); stroke: var(--hi); stroke-width: 3; }
+.lab { font-family: var(--ui); font-weight: 700; fill: var(--line); paint-order: stroke; stroke: var(--halo);
+       stroke-linejoin: round; pointer-events: none; text-anchor: middle; dominant-baseline: middle; }
+.lab.on { fill: var(--hi); }
+.lab.road { font-weight: 600; fill: var(--road); }
+.zoom { position: absolute; right: 10px; top: 10px; display: grid; gap: 6px; }
+.zoom button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--hair); background: var(--surface);
+               color: var(--ink); font: 600 16px var(--ui); cursor: pointer; display: grid; place-items: center; padding: 0; }
+.hint { position: absolute; left: 10px; bottom: 8px; font-size: 11.5px; color: var(--muted);
+        background: color-mix(in srgb, var(--map-ground) 85%, transparent); padding: 2px 6px; border-radius: 5px; }
+aside { display: grid; gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--hair); border-radius: 10px; padding: 14px; display: grid; gap: 12px; }
+.label { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; display: block; }
+.seg { display: inline-flex; border: 1px solid var(--hair); border-radius: 999px; padding: 2px; gap: 2px; flex-wrap: wrap; }
+.seg button { border: 0; background: transparent; color: var(--ink-2); font: 500 13px var(--ui); padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--pill); color: var(--pill-ink); }
+select { width: 100%; background: var(--surface); color: var(--ink); border: 1px solid var(--hair); border-radius: 8px; padding: 6px 8px; font: 500 13px var(--ui); }
+button:focus-visible, .row:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink-2); }
+.checks label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+#ramp { width: 100%; height: 12px; display: block; border-radius: 2px; }
+#ticks { position: relative; height: 16px; margin-top: 4px; font: 10.5px var(--num); color: var(--ink-2); }
+#ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+#ticks span:first-child { transform: none; }
+#ticks span:last-child { transform: translateX(-100%); }
+.blank-key { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); margin-top: 6px; }
+#info { min-height: 150px; }
+#info h2 { margin: 0; font-size: 16px; font-weight: 700; }
+#info .kind { color: var(--muted); font-size: 12px; margin-top: -8px; }
+#info .big { font: 500 22px var(--num); font-variant-numeric: tabular-nums; }
+#info .kv { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; font-size: 13px; }
+#info .kv .k { color: var(--ink-2); }
+#info .kv .n { font-family: var(--num); text-align: right; font-variant-numeric: tabular-nums; }
+#info .where { display: grid; gap: 2px; font-size: 12.5px; color: var(--ink-2); }
+#info .where b { color: var(--ink); font-weight: 600; }
+#info .warn { font-size: 12px; color: var(--warn); }
+#info .pin { font-size: 11.5px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+#info .pin button { border: 1px solid var(--hair); background: transparent; color: var(--ink-2); border-radius: 6px; padding: 2px 8px; cursor: pointer; font: 12px var(--ui); }
+.empty { color: var(--muted); font-size: 13px; }
+.bar { display: flex; height: 9px; border-radius: 2px; overflow: hidden; gap: 1px; }
+.bar i { display: block; height: 100%; }
+.keys { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--ink-2); }
+.keys span { display: inline-flex; gap: 5px; align-items: center; }
+.keys b { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.rows { display: grid; gap: 1px; }
+.row { display: grid; grid-template-columns: 6.4em 1fr 4.8em; gap: 10px; align-items: center; padding: 5px 6px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.row:hover, .row.on { background: color-mix(in srgb, var(--hi) 12%, transparent); }
+.row .who { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .n { font-family: var(--num); text-align: right; font-variant-numeric: tabular-nums; }
+.foot { font-size: 12px; color: var(--muted); max-width: 100ch; }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .map > svg { height: 62vh; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1 id="title"></h1>
+    <p class="lede"><span id="lede"></span> Scroll or pinch to zoom, drag to pan; hover or tap a hexagon for its numbers.</p>
+    <div class="strip" id="strip"></div>
+  </header>
+  <div class="grid">
+    <div class="map">
+      <svg id="svg" role="img" aria-label="Hexagon map"></svg>
+      <div class="zoom">
+        <button type="button" id="zin" aria-label="Zoom in" title="Zoom in">+</button>
+        <button type="button" id="zout" aria-label="Zoom out" title="Zoom out">&minus;</button>
+        <button type="button" id="zfit" aria-label="Fit the whole area" title="Fit the whole area">
+          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+        </button>
+      </div>
+      <div class="hint">North is up</div>
+    </div>
+    <aside>
+      <div class="card">
+        <div><span class="label">Colour</span><div class="seg" id="seg-metric"></div></div>
+        <div id="view-box"><span class="label">Area</span><div class="seg" id="seg-view"></div></div>
+        <div id="pick-box"><label class="label" for="pick">Click to inspect</label><select id="pick"></select></div>
+        <div id="show-box"><span class="label">Show</span><div class="checks" id="checks"></div></div>
+        <div>
+          <span class="label" id="legend-t"></span>
+          <canvas id="ramp" width="600" height="12"></canvas>
+          <div id="ticks"></div>
+          <span class="blank-key"><svg width="14" height="12" aria-hidden="true"><rect width="14" height="12" fill="url(#hatch)"></rect></svg><span id="blank-label"></span></span>
+        </div>
+      </div>
+      <div class="card" id="info" aria-live="polite"></div>
+      <div class="card" id="rank-box">
+        <div>
+          <span class="label" id="rank-title"></span>
+          <div class="seg" id="seg-rank" style="margin-bottom:8px"></div>
+          <div class="rows" id="rows"></div>
+        </div>
+        <div class="keys" id="keys"></div>
+      </div>
+    </aside>
+  </div>
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>
+const D = /*__DATA__*/null;
+const $ = (s) => document.querySelector(s);
+const NS = "http://www.w3.org/2000/svg";
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const METRIC = Object.fromEntries(D.metrics.map((m) => [m.key, m]));
+const VIEW = Object.fromEntries(D.views.map((v) => [v.key, v]));
+const state = {
+  view: D.views[0].key, metric: D.metrics[0].key, pick: "cell", hi: null, sel: null, vb: null,
+  show: Object.fromEntries([["roads", D.has.roads], ["water", D.has.water], ["places", D.has.places],
+    ...D.outline_layers.map((o) => [o.key, o.show])]),
+  rank: D.rankings.length ? D.rankings[0].key : null,
+};
+const svg = $("#svg");
+const el = (name, attrs = {}, parent) => {
+  const e = document.createElementNS(NS, name);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const dark = () => { const t = document.documentElement.dataset.theme; return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; };
+
+// ------------------------------------------------------------ zoom and pan
+function fitBox(box) {
+  const r = svg.getBoundingClientRect(), aspect = r.width / Math.max(r.height, 1);
+  let [x, y, w, h] = box;
+  x -= w * 0.04; y -= h * 0.04; w *= 1.08; h *= 1.08;
+  if (w / h < aspect) { const nw = h * aspect; x -= (nw - w) / 2; w = nw; } else { const nh = w / aspect; y -= (nh - h) / 2; h = nh; }
+  return [x, y, w, h];
+}
+function setVB(vb) {
+  const w = Math.min(Math.max(vb[2], D.w / 70), D.w * 1.6), k = w / vb[2];
+  state.vb = [vb[0] + (vb[2] - w) / 2, vb[1] + (vb[3] - vb[3] * k) / 2, w, vb[3] * k];
+  svg.setAttribute("viewBox", state.vb.join(" "));
+  const px = state.vb[2] / Math.max(svg.getBoundingClientRect().width, 1);
+  svg.querySelectorAll("text.lab").forEach((t) => {
+    t.setAttribute("font-size", (Number(t.dataset.px) * px).toFixed(3));
+    t.setAttribute("stroke-width", (3.5 * px).toFixed(3));
+  });
+}
+const toSvg = (cx, cy) => { const r = svg.getBoundingClientRect(), [x, y, w, h] = state.vb; return [x + (cx - r.left) / r.width * w, y + (cy - r.top) / r.height * h]; };
+function zoomAt(cx, cy, f) { const [x, y, w, h] = state.vb, [px, py] = toSvg(cx, cy); setVB([px - (px - x) * f, py - (py - y) * f, w * f, h * f]); }
+svg.addEventListener("wheel", (e) => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(e.deltaY * 0.0015)); }, { passive: false });
+const pointers = new Map();
+let drag = null, moved = 0;
+svg.addEventListener("pointerdown", (e) => {
+  pointers.set(e.pointerId, [e.clientX, e.clientY]); moved = 0;   // capture only once a drag starts
+  drag = pointers.size === 1 ? { x: e.clientX, y: e.clientY, vb: [...state.vb] } : null;
+});
+svg.addEventListener("pointermove", (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId);
+  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()], other = [...pointers.entries()].find(([id]) => id !== e.pointerId)[1];
+    const d0 = Math.hypot(prev[0] - other[0], prev[1] - other[1]), d1 = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (d0 > 0 && d1 > 0) zoomAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, d0 / d1);
+    moved += 10;
+  } else if (drag) {
+    const s = state.vb[2] / svg.getBoundingClientRect().width;
+    moved = Math.max(moved, Math.hypot(e.clientX - drag.x, e.clientY - drag.y));
+    if (moved > 3) { svg.classList.add("dragging"); if (!svg.hasPointerCapture(e.pointerId)) svg.setPointerCapture(e.pointerId); }
+    setVB([drag.vb[0] - (e.clientX - drag.x) * s, drag.vb[1] - (e.clientY - drag.y) * s, drag.vb[2], drag.vb[3]]);
+  }
+});
+const endPointer = (e) => { pointers.delete(e.pointerId); if (!pointers.size) { drag = null; svg.classList.remove("dragging"); } };
+svg.addEventListener("pointerup", endPointer); svg.addEventListener("pointercancel", endPointer);
+const mid = () => { const r = svg.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+$("#zin").addEventListener("click", () => zoomAt(...mid(), 0.66));
+$("#zout").addEventListener("click", () => zoomAt(...mid(), 1.5));
+$("#zfit").addEventListener("click", () => setVB(fitBox(VIEW[state.view].box)));
+addEventListener("resize", () => setVB(state.vb));
+
+// ------------------------------------------------------------ drawing
+function drawMap() {
+  const v = VIEW[state.view];
+  svg.innerHTML = "";
+  const pat = el("pattern", { id: "hatch", width: 5, height: 5, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, el("defs", {}, svg));
+  el("rect", { width: 5, height: 5, fill: "var(--blank)" }, pat);
+  el("line", { x1: 0, y1: 0, x2: 0, y2: 5, stroke: "var(--blank-hatch)", "stroke-width": 1.2 }, pat);
+  if (state.show.water) { const g = el("g", { class: "water" }, svg); for (const d of D.water) el("path", { d }, g); }
+  const gc = el("g", { class: "cells" }, svg);
+  v.cells.forEach((c, i) => el("path", { d: c.d, "data-i": i }, gc));
+  if (state.show.roads) { const g = el("g", { class: "roads" }, svg); for (const r of D.roads) el("path", { d: r.d, class: r.major ? "major" : "minor" }, g); }
+  el("path", { class: "frame", d: v.frame }, svg);
+  const labels = el("g", {}, svg);
+  if (state.pick !== "cell") { const g = el("g", { class: "areas" }, svg); D.areas[state.pick].forEach((a, i) => el("path", { d: a.d, "data-a": i }, g)); }
+  for (const o of D.outline_layers) {
+    if (!state.show[o.key] || state.pick === o.key) continue;
+    const g = el("g", {}, svg), colour = `rgb(${(dark() ? o.dark : o.light).join(",")})`;
+    for (const d of D.outlines[o.key]) {
+      el("path", { class: "outline", d: d.d, stroke: colour, "data-k": `${o.key}|${d.name}` }, g);
+      const t = el("text", { class: "lab", x: d.x, y: d.y, "data-k": `${o.key}|${d.name}`, "data-px": 13 }, labels);
+      t.textContent = d.short;
+    }
+  }
+  if (state.show.roads) for (const r of D.road_labels) { const t = el("text", { class: "lab road", x: r.x, y: r.y, "data-px": 11 }, labels); t.textContent = r.name; }
+  if (state.show.places && v.places) for (const c of D.places) { const t = el("text", { class: "lab", x: c.x, y: c.y, "data-px": 14 }, labels); t.textContent = c.name; }
+  svg.appendChild(labels);
+  const hover = (e) => {
+    if (drag && moved > 3) return;
+    const i = e.target.dataset.i, a = e.target.dataset.a;
+    if (i !== undefined && !state.sel) info({ type: "cell", p: v.cells[+i] }, false);
+    if (a !== undefined && !state.sel) info({ type: "area", a: D.areas[state.pick][+a] }, false);
+  };
+  svg.onpointerover = hover; svg.onmouseover = hover;
+  svg.onclick = (e) => {
+    if (moved > 3) return;
+    const i = e.target.dataset.i, a = e.target.dataset.a;
+    if (i !== undefined) state.sel = { type: "cell", p: v.cells[+i], i: +i };
+    else if (a !== undefined) state.sel = { type: "area", a: D.areas[state.pick][+a], i: +a };
+    else return;
+    info(state.sel, true); mark();
+  };
+  colour(); mark(); setVB(state.vb || fitBox(v.box));
+}
+
+function colour() {
+  const v = VIEW[state.view], m = state.metric;
+  svg.querySelectorAll(".cells path").forEach((p, i) => p.setAttribute("fill", v.cells[i].blank ? "url(#hatch)" : v.cells[i].c[m]));
+  const lg = METRIC[m].legend, c = $("#ramp"), g = c.getContext("2d"), grad = g.createLinearGradient(0, 0, c.width, 0);
+  lg.stops.forEach((s, i) => grad.addColorStop(i / (lg.stops.length - 1), s));
+  g.fillStyle = grad; g.fillRect(0, 0, c.width, c.height);
+  $("#ticks").innerHTML = lg.ticks.map((t, i) => `<span style="left:${(t * 100).toFixed(2)}%">${esc(lg.labels[i])}</span>`).join("");
+  $("#legend-t").textContent = `${METRIC[m].label}: darker is higher (log scale)`;
+}
+
+function mark() {
+  svg.querySelectorAll("[data-k]").forEach((e) => e.classList.toggle("on", e.dataset.k === state.hi));
+  $("#rows").querySelectorAll(".row").forEach((e) => e.classList.toggle("on", `${state.rank}|${e.dataset.k}` === state.hi));
+  svg.querySelectorAll(".sel").forEach((e) => e.classList.remove("sel"));
+  if (state.sel && state.sel.i !== undefined) {
+    const q = state.sel.type === "cell" ? `.cells path[data-i="${state.sel.i}"]` : `.areas path[data-a="${state.sel.i}"]`;
+    const p = svg.querySelector(q); if (p) p.classList.add("sel");
+  }
+}
+
+// ------------------------------------------------------------ cards
+const bar = (shares) => !shares || !D.split ? "" : `<div class="bar">${shares.map((s, i) => s > 0
+  ? `<i style="width:${(s * 100).toFixed(1)}%;background:${D.split.colours[i]}" title="${esc(D.split.labels[i])} ${(s * 100).toFixed(0)}%"></i>` : "").join("")}</div>`;
+function info(s, pinned) {
+  const box = $("#info");
+  if (!s) { box.innerHTML = `<div class="empty">Hover a hexagon, or an area when "Click to inspect" is set to one, to see its numbers here. Click to pin it.</div>`; return; }
+  const pin = pinned ? `<div class="pin"><span>Pinned</span><button type="button" id="unpin">Clear</button></div>` : "";
+  let html;
+  if (s.type === "cell") {
+    const p = s.p, m = METRIC[state.metric], noun = VIEW[state.view].noun;
+    const rows = D.metrics.map((x) => [x.label, p.t[x.key]]).concat(D.cell_fields.map((l, i) => [l, p.f[i]]));
+    html = `${pin}<div><div class="big">${p.blank ? esc(D.blank_label) : esc(p.t[m.key])}</div>
+        <div class="kind" style="margin-top:0">${p.blank ? "" : esc(m.noun) + " · "}one ${esc(noun)}</div></div>
+      <div class="kv">${rows.map(([k, v]) => `<span class="k">${esc(k)}</span><span class="n">${esc(v)}</span>`).join("")}</div>
+      ${p.s ? `<div><span class="label">${esc(D.split.title)}</span>${bar(p.s)}</div>` : ""}
+      ${p.w.length ? `<div class="where">${p.w.map((w) => `<span>${esc(w[0])}: ${w[1] ? `<b>${esc(w[1])}</b> (${Math.round(w[2] * 100)}% of the ${esc(noun.split(" ").pop())})` : "<b>none</b>"}</span>`).join("")}</div>` : ""}`;
+  } else {
+    const a = s.a;
+    html = `${pin}<h2>${esc(a.name)}</h2><div class="kind">${esc(a.kind)}</div>
+      <div><div class="big">${esc(a.h[0])}</div><div class="kind" style="margin-top:0">${esc(a.h[1])}</div></div>
+      <div class="kv">${a.f.map(([k, v]) => `<span class="k">${esc(k)}</span><span class="n">${esc(v)}</span>`).join("")}</div>
+      ${a.s ? `<div><span class="label">${esc(D.split.title)}</span>${bar(a.s)}</div>` : ""}
+      ${a.notes.map((n) => `<div class="warn">${esc(n)}</div>`).join("")}`;
+  }
+  box.innerHTML = html;
+  const b = $("#unpin"); if (b) b.addEventListener("click", () => { state.sel = null; info(null); mark(); });
+}
+
+function drawRows() {
+  const R = D.rankings.find((r) => r.key === state.rank);
+  if (!R) return;
+  $("#rank-title").textContent = R.title;
+  const max = Math.max(...R.rows.map((r) => r.value || 0)) || 1;
+  $("#rows").innerHTML = R.rows.map((r) => {
+    const parts = r.parts ? r.parts.map((x) => (x || 0) / max) : [(r.value || 0) / max];
+    const cols = r.parts && D.split ? D.split.colours : ["#8b939e"];
+    return `<div class="row" tabindex="0" data-k="${esc(r.name)}" title="${esc(r.name)}"><span class="who">${esc(r.short)}</span>
+      <span class="bar">${parts.map((s, i) => s > 0 ? `<i style="width:${(s * 100).toFixed(1)}%;background:${cols[i % cols.length]}"></i>` : "").join("")}</span>
+      <span class="n">${esc(r.text)}</span></div>`;
+  }).join("");
+  $("#rows").querySelectorAll(".row").forEach((e) => {
+    const name = e.dataset.k, k = `${R.key}|${name}`;
+    const on = () => { if (!state.show[R.key]) { state.show[R.key] = true; const c = $(`#o-${R.key}`); if (c) c.checked = true; drawMap(); } state.hi = k; mark(); };
+    e.addEventListener("mouseenter", on); e.addEventListener("focus", on);
+    e.addEventListener("mouseleave", () => { state.hi = null; mark(); });
+    e.addEventListener("click", () => {
+      const a = Object.values(D.areas).flat().find((x) => x.name === name);
+      if (a) { state.sel = { type: "area", a }; info(state.sel, true); }
+    });
+  });
+  mark();
+}
+
+function seg(id, items, field, after) {
+  const box = $(`#${id}`);
+  box.innerHTML = items.map(([v, l]) => `<button type="button" data-v="${esc(v)}" aria-pressed="${v === state[field]}">${esc(l)}</button>`).join("");
+  box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    state[field] = b.dataset.v;
+    box.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    after();
+  }));
+}
+
+$("#title").textContent = D.title;
+$("#lede").textContent = D.lede;
+$("#foot").textContent = D.footnote;
+$("#blank-label").textContent = D.blank_label;
+$("#strip").innerHTML = D.summary.map(([k, v]) => `<div><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`).join("");
+seg("seg-metric", D.metrics.map((m) => [m.key, m.label]), "metric", colour);
+seg("seg-view", D.views.map((v) => [v.key, v.label]), "view", () => { state.sel = null; info(null); state.vb = null; drawMap(); });
+$("#view-box").hidden = D.views.length < 2;
+$("#pick-box").hidden = !D.layers.length;
+$("#pick").innerHTML = `<option value="cell">Hexagons</option>` + D.layers.map((l) => `<option value="${esc(l.key)}">${esc(l.label)}</option>`).join("");
+$("#pick").addEventListener("change", (e) => { state.pick = e.target.value; state.sel = null; info(null); drawMap(); });
+const checks = [["roads", "Highways", D.has.roads], ["water", "Water", D.has.water], ["places", "Place labels", D.has.places]]
+  .filter((c) => c[2]).concat(D.outline_layers.map((o) => [o.key, o.label, true]));
+$("#checks").innerHTML = checks.map(([k, l]) => `<label><input type="checkbox" id="o-${esc(k)}"${state.show[k] ? " checked" : ""}> ${esc(l)}</label>`).join("");
+$("#show-box").hidden = !checks.length;
+for (const [k] of checks) $(`#o-${k}`).addEventListener("change", (e) => { state.show[k] = e.target.checked; drawMap(); });
+$("#rank-box").hidden = !D.rankings.length;
+if (D.rankings.length > 1) seg("seg-rank", D.rankings.map((r) => [r.key, D.outline_layers.find((o) => o.key === r.key).label]), "rank", drawRows);
+else $("#seg-rank").hidden = true;
+$("#keys").innerHTML = D.split ? D.split.labels.map((g, i) => `<span><b style="background:${D.split.colours[i]}"></b>${esc(g)}</span>`).join("") : "";
+new MutationObserver(drawMap).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawMap);
+info(null); drawMap(); drawRows();
+</script>
