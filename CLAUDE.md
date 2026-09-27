@@ -26,5 +26,5 @@ The four starting questions (Part 2c):
 - Syncing folder: no; it is under dev/repo.
 - Writers: one machine (IE-132612).
 
-It is private until Dr. Jones decides otherwise. Every change goes through a pull request, and Dr.
-Jones merges.
+Public since v0.1.0 (Dr. Jones, 2026-09-27): generic code, no data. Every change goes through a pull
+request, and Dr. Jones merges.

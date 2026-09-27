@@ -37,8 +37,7 @@ MapLibre basemap) and a 2D map (zoomable SVG), each one self-contained HTML file
 pip install "hexmap-web @ git+https://github.com/sear-labs/hexmap-web.git@v0.1.0"
 ```
 
-This is a private repo, so installing needs GitHub access to `sear-labs` (a signed-in `gh` or git
-credential manager is enough). For development:
+The repo is public, so this needs no GitHub sign-in. Pin a tag, not a branch. For development:
 
 ```bash
 pip install -e ".[dev]"
