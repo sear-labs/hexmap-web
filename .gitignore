@@ -1,0 +1,86 @@
+# Rename to .gitignore and commit BEFORE anything else.
+# Then verify, don't assume:  git check-ignore -v <each secret file>
+
+# --- credentials: the one mistake that cannot be undone -----------------
+.env
+.env.*
+*.lic
+
+# Licence files that are NOT named *.lic. Measured 2026-09-06: gamslice.txt is a
+# five-user departmental GAMS licence and matched nothing above, so a GAMS project
+# folder would have carried it into git. A wildcard on the extension is not enough -
+# licence files are named by their vendor's convention, not yours.
+gamslice.txt
+gamslice*.txt
+*license.dat
+*licence.dat
+WLSKeyinfo*
+*.pem
+*.key
+*_key*
+*_secret*
+*credentials*
+*token*
+service-account*.json
+
+# --- data: keep raw out unless it is small, public and immutable --------
+data/raw/*
+data/interim/*
+data/processed/*
+!data/**/.gitkeep
+
+# --- generated results ---------------------------------------------------
+# Deliberate exception (see standard Part 1 rule 5 and Part 5): final figures
+# and tables ARE committed, so a reader sees outputs without running anything.
+# Say so in the README. Un-ignore them here:
+results/*
+!results/figures/
+!results/tables/
+!results/**/.gitkeep
+
+# --- python --------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# --- models and large artifacts ------------------------------------------
+*.ckpt
+*.pt
+*.pth
+*.h5
+*.onnx
+
+# --- solver / tool noise -------------------------------------------------
+*.log
+*.lp
+*.mps
+*.sol
+*.ilp
+
+# --- editor backups ------------------------------------------------------
+*.bak
+*.orig
+*~
+
+# NOT ignored on purpose: script_v2.py, module_old.py, report_FINAL.docx.
+# Version control by filename is an anti-pattern (standard Part 8) but the fix
+# is review, not .gitignore. A pattern like *_v[0-9]*.py silently drops real
+# source in any project that has an api_v2.py -- a rule that hides source code
+# is worse than the habit it was meant to discourage.
+
+# --- os / editor ---------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# --- generated example pages -------------------------------------------
+examples/out/
