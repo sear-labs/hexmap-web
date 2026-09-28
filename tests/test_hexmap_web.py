@@ -146,3 +146,59 @@ def test_nan_becomes_null():
 
 def test_public_api():
     assert set(hw.__all__) >= {"MapSpec", "View", "Metric", "write_3d", "write_2d", "hexbin"}
+
+
+# ------------------------------------------------------------------ diverging (0.2.0)
+
+def test_diverging_scale_centres_and_marks_its_ends():
+    cm, norm = colour.diverging(), colour.diverging_norm(-2, 1)
+    lg = colour.legend(cm, norm, fmt.signed(" h"))
+    assert lg["ticks"] == [0.0, 0.25, 0.5, 0.75, 1.0]
+    assert lg["labels"] == ["≤" + fmt.MINUS + "2.0 h", fmt.MINUS + "1.0 h", "0.0 h", "+0.5 h", "≥+1.0 h"]
+    lo, mid, hi, beyond, missing = colour.rgb([-2, 0, 1, 50, float("nan")], cm, norm)
+    assert colour.hex_colour(lo) == colour.DIVERGING[0] and colour.hex_colour(hi) == colour.DIVERGING[2]
+    assert beyond == hi and missing == colour.MISSING and sum(mid) > sum(lo)
+    with pytest.raises(ValueError):
+        colour.diverging_norm(1, 2)
+
+
+def test_signed_format():
+    f = fmt.signed(" h")
+    assert [f(0.44), f(-1.25), f(0.01), f(float("nan"))] == ["+0.4 h", fmt.MINUS + "1.2 h", "0.0 h", "—"]
+
+
+@pytest.fixture(scope="module")
+def comparison(tmp_path_factory):
+    sys.path.insert(0, str(ROOT / "examples"))
+    import synthetic_comparison
+
+    out = tmp_path_factory.mktemp("cmp")
+    p3, p2 = synthetic_comparison.main(out)
+    return synthetic_comparison, p3, p2
+
+
+def test_comparison_example_weights_by_people_and_greys_what_is_missing(comparison):
+    ex, p3, p2 = comparison
+    d3, d2 = _data(p3.read_text(encoding="utf-8")), _data(p2.read_text(encoding="utf-8"))
+    p = ex.neighbourhoods()
+    q = ex.trip_times(p, "B")
+    cells = ex.cells_for(q)
+    assert cells.people.sum() == pytest.approx(q.people.sum())
+    # the people-weighted mean over all hexagons equals the one over all neighbourhoods
+    assert (cells.saved_car * cells.people).sum() / cells.people.sum() == pytest.approx(
+        ((q.car_h - q.new_h) * q.people).sum() / q.people.sum())
+    feats = d3["views"][0]["cells"]["features"]
+    no_air = [f["properties"] for f in feats if f["properties"]["v"]["saved_air"] is None]
+    assert no_air and all(x["c"]["saved_air"] == colour.MISSING and x["t"]["saved_air"] == "—" for x in no_air)
+    vals = [f["properties"]["v"]["saved_best"] for f in feats]
+    assert min(vals) < 0 < max(vals)                                  # both signs, so both colours
+    assert d3["views"][0]["max"]["saved_best"] == pytest.approx(max(abs(v) for v in vals))
+    m = d2["metrics"][0]
+    assert "grey, no such alternative" in m["note"] and m["legend"]["labels"][2] == "0.0 h"
+    assert d3["metrics"][0]["height"].startswith("height is the size")
+
+
+def test_a_sequential_metric_keeps_its_default_note(example):
+    _, p3, _ = example
+    m = _data(p3.read_text(encoding="utf-8"))["metrics"][0]
+    assert m["note"] == "darker is higher (log scale)" and m["height"] == "height is proportional"

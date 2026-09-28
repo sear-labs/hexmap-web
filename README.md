@@ -5,14 +5,16 @@ MapLibre basemap) and a 2D map (zoomable SVG), each one self-contained HTML file
 
 | | |
 |---|---|
-| **Status** | v0.1, SEAR Lab. First used by [`sear-labs/tarrant-landvalue-gis`](https://github.com/sear-labs/tarrant-landvalue-gis) |
+| **Status** | v0.2, SEAR Lab. First used by [`sear-labs/tarrant-landvalue-gis`](https://github.com/sear-labs/tarrant-landvalue-gis) |
 | **Standard** | https://github.com/sear-labs/code-standard: read it first and last |
 | **Licence** | MIT |
 
 ## What you get
 
 **Both maps**
-- Hexagons coloured on a clipped log scale; darker is always higher, on every background.
+- Hexagons coloured on a clipped log scale (darker is always higher, on every background), or on
+  a **diverging** scale for a difference that can be either sign: time or money saved by one
+  option against another. A missing value is grey.
 - Hover or click a hexagon for its numbers, how its total splits between parts, and the named
   areas covering most of it (for example, census tract, ZIP, city, district, with the share).
 - **Click to inspect:** any area layer you supply (cities, districts, ZIP codes, tracts ...),
@@ -21,7 +23,7 @@ MapLibre basemap) and a 2D map (zoomable SVG), each one self-contained HTML file
 - Roads, water and place labels, so the map reads without a basemap.
 
 **3D map**
-- Column height is proportional to the chosen metric.
+- Column height is proportional to the chosen metric (its size, on a diverging one).
 - Compass (click for north), zoom, tilt and fit buttons.
 - Dark or light basemap: free CARTO styles, no token.
 - If the basemap can't load (offline, or a Claude Artifact), the page says so and draws on a plain
@@ -34,7 +36,7 @@ MapLibre basemap) and a 2D map (zoomable SVG), each one self-contained HTML file
 ## Install
 
 ```bash
-pip install "hexmap-web @ git+https://github.com/sear-labs/hexmap-web.git@v0.1.0"
+pip install "hexmap-web @ git+https://github.com/sear-labs/hexmap-web.git@v0.2.0"
 ```
 
 The repo is public, so this needs no GitHub sign-in. Pin a tag, not a branch. For development:
@@ -43,6 +45,7 @@ The repo is public, so this needs no GitHub sign-in. Pin a tag, not a branch. Fo
 pip install -e ".[dev]"
 pytest -q
 python examples/synthetic_map.py        # writes examples/out/synthetic_3d.html and _2d.html
+python examples/synthetic_comparison.py # writes examples/out/comparison_3d.html and _2d.html
 ```
 
 ## Use
@@ -67,11 +70,27 @@ hw.write_2d(spec, "map2d.html")
 `examples/synthetic_map.py` uses every part of the spec on made-up data. It is also the
 end-to-end test.
 
+### A diverging map: what one option saves against another
+
+`examples/synthetic_comparison.py` maps door-to-door hours saved by a new service against the
+faster alternative, against the car and against air, with one metric per comparison:
+
+```python
+hours = fmt.signed(" h")
+hw.Metric("saved_car", "Against the car", "saved against the car",
+          colour.diverging_norm(-1.5, 1.5), fmt=hours, tick_fmt=hours, cmap=colour.diverging(),
+          note="blue, the new service is faster; orange, slower; grey, no such alternative")
+```
+
+A saving per person is not additive, so bin what is: people x hours saved and people, then
+divide per hexagon. Where an alternative does not exist (no airport in reach), leave its value
+NaN; the hexagon is grey under that metric only.
+
 ### The spec, in one table
 
 | Part | What it is |
 |---|---|
-| `Metric` | a column that colours hexagons (and sets 3D height), with its colour range and number formats |
+| `Metric` | a column that colours hexagons (and sets 3D height), with its colour scale (log or diverging), number formats and legend note |
 | `View` | one set of hexagons (`q`, `r`, metric and field columns; optional `blank`), their side, the frame to fit, and `where` (per-cell `[name, share]`, e.g. from `geometry.dominant`) |
 | `Field` | a labelled value on a card: column, label, format |
 | `Split` | how a total divides into parts (columns and colours), drawn as a stacked bar |

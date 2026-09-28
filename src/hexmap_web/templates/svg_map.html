@@ -274,7 +274,7 @@ function colour() {
   lg.stops.forEach((s, i) => grad.addColorStop(i / (lg.stops.length - 1), s));
   g.fillStyle = grad; g.fillRect(0, 0, c.width, c.height);
   $("#ticks").innerHTML = lg.ticks.map((t, i) => `<span style="left:${(t * 100).toFixed(2)}%">${esc(lg.labels[i])}</span>`).join("");
-  $("#legend-t").textContent = `${METRIC[m].label}: darker is higher (log scale)`;
+  $("#legend-t").textContent = `${METRIC[m].label}: ${METRIC[m].note}`;
 }
 
 function mark() {

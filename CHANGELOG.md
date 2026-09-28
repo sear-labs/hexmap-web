@@ -2,6 +2,26 @@
 
 Semantic versioning. The public API is `hexmap_web.__all__`.
 
+## 0.2.0 (2026-09-28)
+
+Diverging metrics, for a difference that can be either sign (time or money saved by one option
+against another). Backwards compatible: a 0.1 spec draws the same pages.
+
+- `colour.diverging()` (orange below the centre, a pale middle, blue above) and
+  `colour.diverging_norm(lo, hi, centre=0)`. Legends mark both clipped ends (`≤`, `≥`).
+- A missing value (NaN) is one neutral grey, `colour.MISSING`, on every metric, so a metric
+  can be absent where its alternative does not exist.
+- `Metric.cmap` also takes a Colormap. `Metric.note` says what the colours mean on the legend;
+  when it is empty, `colour.note` supplies "darker is higher (log scale)" as before.
+- 3D: a column's height is the value's size, either sign; its colour gives the sign.
+- `fmt.signed(unit, digits)`: "+0.4 h", "−1.2 h" with a true minus sign.
+- `examples/synthetic_comparison.py`: door-to-door time saved by a new service against the
+  faster alternative, the car and air, on made-up cities. It shows how to bin a quantity
+  that is not additive: sum people x hours and people, then divide. Tested end to end.
+
+Suggested by its first diverging use, `sear-labs/hsr-robotaxi-scenarios` (Dr. Jones,
+2026-09-28). Checked in a browser: both pages, all three metrics, both views.
+
 ## 0.1.0 (2026-09-27)
 
 First release, extracted from `sear-labs/tarrant-landvalue-gis`, where the maps were built and
