@@ -2,6 +2,34 @@
 
 Semantic versioning. The public API is `hexmap_web.__all__`.
 
+## 0.3.0 (2026-09-28)
+
+Toggles, for data that changes with a choice such as season or time of day, and a signed log
+scale for a net flow. Backwards compatible: a 0.2 spec draws the same pages. One visible change:
+legends on long log scales now label at most six doublings, both ends kept, where 0.2 labelled
+every doubling (which overlapped on a narrow legend).
+
+- `Toggle(key, label, options)` and `MapSpec.toggles`: rows of buttons; every combination of
+  options is a slice. A column is sliced when the frame holds it once per slice, named
+  `slice_key(key, option, ...)`. Metrics, the cell fields that repeat a metric's key, the split,
+  area-layer fields and rankings can all be sliced; the legend and cards name the slice.
+- A sliced metric is stored as one table of its distinct values (rounded to
+  `MapSpec.slice_digits`, default 3 significant figures), each with its text and colour, plus one
+  index per cell and slice. A page with 25 slices of nine metrics over 1,700 hexagons is about
+  7 MB; stored plainly it would be about 40.
+- 3D column heights are scaled to the tallest value over every slice, so heights compare between
+  slices.
+- Refused, with a message: a column sliced for some slices but not all, a metric sliced in some
+  views but not all, a sliced cell field that is not a sliced metric.
+- `colour.signed_log_norm(linthresh, vmax)`: diverging, linear within ±linthresh and logarithmic
+  beyond, for sizes that span decades on both sides of zero (net supply by place). Ticks at 0,
+  ±vmax and one power of two between.
+- `examples/synthetic_toggles.py`: made-up homes, a solar farm and a wind farm, by season and time
+  of day; use, supply and net. Tested end to end: every slice read back from the page.
+
+Built for `sear-labs/ercot-grid-analysis`: demand and net generation by season and time of day
+(Dr. Jones, 2026-09-28). Checked in a browser: both pages, toggles, legend and cards.
+
 ## 0.2.0 (2026-09-28)
 
 Diverging metrics, for a difference that can be either sign (time or money saved by one option

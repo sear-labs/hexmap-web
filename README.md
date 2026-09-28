@@ -5,7 +5,7 @@ MapLibre basemap) and a 2D map (zoomable SVG), each one self-contained HTML file
 
 | | |
 |---|---|
-| **Status** | v0.2, SEAR Lab. First used by [`sear-labs/tarrant-landvalue-gis`](https://github.com/sear-labs/tarrant-landvalue-gis) |
+| **Status** | v0.3, SEAR Lab. First used by [`sear-labs/tarrant-landvalue-gis`](https://github.com/sear-labs/tarrant-landvalue-gis) |
 | **Standard** | https://github.com/sear-labs/code-standard: read it first and last |
 | **Licence** | MIT |
 
@@ -14,7 +14,9 @@ MapLibre basemap) and a 2D map (zoomable SVG), each one self-contained HTML file
 **Both maps**
 - Hexagons coloured on a clipped log scale (darker is always higher, on every background), or on
   a **diverging** scale for a difference that can be either sign: time or money saved by one
-  option against another. A missing value is grey.
+  option against another, or a net flow on a signed log scale. A missing value is grey.
+- **Toggles** (for example, season and time of day): every combination is a slice, and metrics,
+  cards, splits, areas and rankings switch with it.
 - Hover or click a hexagon for its numbers, how its total splits between parts, and the named
   areas covering most of it (for example, census tract, ZIP, city, district, with the share).
 - **Click to inspect:** any area layer you supply (cities, districts, ZIP codes, tracts ...),
@@ -36,7 +38,7 @@ MapLibre basemap) and a 2D map (zoomable SVG), each one self-contained HTML file
 ## Install
 
 ```bash
-pip install "hexmap-web @ git+https://github.com/sear-labs/hexmap-web.git@v0.2.0"
+pip install "hexmap-web @ git+https://github.com/sear-labs/hexmap-web.git@v0.3.0"
 ```
 
 The repo is public, so this needs no GitHub sign-in. Pin a tag, not a branch. For development:
@@ -46,6 +48,7 @@ pip install -e ".[dev]"
 pytest -q
 python examples/synthetic_map.py        # writes examples/out/synthetic_3d.html and _2d.html
 python examples/synthetic_comparison.py # writes examples/out/comparison_3d.html and _2d.html
+python examples/synthetic_toggles.py    # writes examples/out/toggles_3d.html and _2d.html
 ```
 
 ## Use
@@ -86,6 +89,26 @@ A saving per person is not additive, so bin what is: people x hours saved and pe
 divide per hexagon. Where an alternative does not exist (no airport in reach), leave its value
 NaN; the hexagon is grey under that metric only.
 
+### Toggles: the same map by season, time of day, scenario ...
+
+`examples/synthetic_toggles.py` maps power used and made by season and time of day. Give each
+sliced quantity one column per combination of options, named with `hw.slice_key`, and name the
+options:
+
+```python
+for s in ("all", "summer", "winter"):
+    for t in ("all", "midday", "evening", "night"):
+        cells[hw.slice_key("net", s, t)] = ...           # "net@summer@evening"
+spec = hw.MapSpec(..., toggles=[hw.Toggle("season", "Season", [("all", "All year"), ...]),
+                                hw.Toggle("time", "Time of day", [("all", "All day"), ...])])
+```
+
+The first option of each toggle is shown first. Anything without slice columns stays as it is.
+For a net quantity that spans decades on both sides of zero, use
+`colour.signed_log_norm(linthresh, vmax)` with `cmap=colour.diverging()`. Sliced values are
+rounded to `MapSpec.slice_digits` significant figures (default 3), which keeps a page with many
+slices a few MB.
+
 ### The spec, in one table
 
 | Part | What it is |
@@ -97,6 +120,7 @@ NaN; the hexagon is grey under that metric only.
 | `AreaLayer` | areas that can be selected: `name`, stat columns, geometry, the headline and fields on their card, optional notes |
 | `Outline` | named boundaries drawn over the map (`name`, `short`), with an optional `Ranking` list |
 | `Context` | roads (`major` bool), road labels, water and place labels |
+| `Toggle` | a row of option buttons; with `slice_key` columns, every combination of options is a slice |
 | `MapSpec` | the whole map, plus title, lede, footnote, summary figures and the CRS of all geometry |
 
 **Every number reaches the page already formatted** by the `fmt` callables in the spec (`fmt.money`,
