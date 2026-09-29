@@ -126,6 +126,7 @@ button:focus-visible, .row:focus-visible, input:focus-visible, select:focus-visi
     <aside>
       <div class="card">
         <div><span class="label">Colour</span><div class="seg" id="seg-metric"></div></div>
+        <div id="toggles" style="display:grid;gap:12px"></div>
         <div id="view-box"><span class="label">Area</span><div class="seg" id="seg-view"></div></div>
         <div id="pick-box"><label class="label" for="pick">Click to inspect</label><select id="pick"></select></div>
         <div id="show-box"><span class="label">Show</span><div class="checks" id="checks"></div></div>
@@ -162,8 +163,24 @@ const state = {
   show: Object.fromEntries([["roads", D.has.roads], ["water", D.has.water], ["places", D.has.places],
     ...D.outline_layers.map((o) => [o.key, o.show])]),
   rank: D.rankings.length ? D.rankings[0].key : null,
+  tog: Object.fromEntries(D.toggles.map((t) => [t.key, t.options[0][0]])),
 };
 const svg = $("#svg");
+
+// ------------------------------------------------------------ slices
+// The slice index counts through the toggles' options, first toggle outermost (as page.py lists them).
+const slice = () => D.toggles.reduce((k, t) => k * t.options.length + t.options.findIndex((o) => o[0] === state.tog[t.key]), 0);
+const sliceText = () => D.toggles.map((t) => t.options.find((o) => o[0] === state.tog[t.key])[1]).join(", ");
+function applySlice() {
+  const k = slice(), T = D.tables;
+  for (const v of D.views) for (const p of v.cells) {
+    if (p.z) for (const m in p.z) { const j = p.z[m][k]; p.v[m] = T[m].v[j]; p.t[m] = T[m].t[j]; p.c[m] = T[m].c[j]; }
+    if (p.zs !== undefined) p.s = p.zs ? p.zs[k] : null;
+    D.field_metric.forEach((m, i) => { if (m && p.z) p.f[i] = T[m].t[p.z[m][k]]; });
+  }
+  for (const items of Object.values(D.areas)) for (const a of items) if (a.H) { a.h = a.H[k]; a.f = a.F[k]; a.s = a.S[k]; }
+  for (const R of D.rankings) for (const r of R.rows) if (r.V) { r.value = r.V[k]; r.text = r.T[k]; if (r.P) r.parts = r.P[k]; }
+}
 const el = (name, attrs = {}, parent) => {
   const e = document.createElementNS(NS, name);
   for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
@@ -274,7 +291,7 @@ function colour() {
   lg.stops.forEach((s, i) => grad.addColorStop(i / (lg.stops.length - 1), s));
   g.fillStyle = grad; g.fillRect(0, 0, c.width, c.height);
   $("#ticks").innerHTML = lg.ticks.map((t, i) => `<span style="left:${(t * 100).toFixed(2)}%">${esc(lg.labels[i])}</span>`).join("");
-  $("#legend-t").textContent = `${METRIC[m].label}: ${METRIC[m].note}`;
+  $("#legend-t").textContent = `${METRIC[m].label}${METRIC[m].sliced ? ` (${sliceText()})` : ""}: ${METRIC[m].note}`;
 }
 
 function mark() {
@@ -299,13 +316,13 @@ function info(s, pinned) {
     const p = s.p, m = METRIC[state.metric], noun = VIEW[state.view].noun;
     const rows = D.metrics.map((x) => [x.label, p.t[x.key]]).concat(D.cell_fields.map((l, i) => [l, p.f[i]]));
     html = `${pin}<div><div class="big">${p.blank ? esc(D.blank_label) : esc(p.t[m.key])}</div>
-        <div class="kind" style="margin-top:0">${p.blank ? "" : esc(m.noun) + " · "}one ${esc(noun)}</div></div>
+        <div class="kind" style="margin-top:0">${p.blank ? "" : esc(m.noun) + " · "}one ${esc(noun)}${D.toggles.length ? " · " + esc(sliceText()) : ""}</div></div>
       <div class="kv">${rows.map(([k, v]) => `<span class="k">${esc(k)}</span><span class="n">${esc(v)}</span>`).join("")}</div>
       ${p.s ? `<div><span class="label">${esc(D.split.title)}</span>${bar(p.s)}</div>` : ""}
       ${p.w.length ? `<div class="where">${p.w.map((w) => `<span>${esc(w[0])}: ${w[1] ? `<b>${esc(w[1])}</b> (${Math.round(w[2] * 100)}% of the ${esc(noun.split(" ").pop())})` : "<b>none</b>"}</span>`).join("")}</div>` : ""}`;
   } else {
     const a = s.a;
-    html = `${pin}<h2>${esc(a.name)}</h2><div class="kind">${esc(a.kind)}</div>
+    html = `${pin}<h2>${esc(a.name)}</h2><div class="kind">${esc(a.kind)}${a.H ? " · " + esc(sliceText()) : ""}</div>
       <div><div class="big">${esc(a.h[0])}</div><div class="kind" style="margin-top:0">${esc(a.h[1])}</div></div>
       <div class="kv">${a.f.map(([k, v]) => `<span class="k">${esc(k)}</span><span class="n">${esc(v)}</span>`).join("")}</div>
       ${a.s ? `<div><span class="label">${esc(D.split.title)}</span>${bar(a.s)}</div>` : ""}
@@ -356,6 +373,14 @@ $("#foot").textContent = D.footnote;
 $("#blank-label").textContent = D.blank_label;
 $("#strip").innerHTML = D.summary.map(([k, v]) => `<div><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`).join("");
 seg("seg-metric", D.metrics.map((m) => [m.key, m.label]), "metric", colour);
+$("#toggles").hidden = !D.toggles.length;
+$("#toggles").innerHTML = D.toggles.map((t) => `<div><span class="label">${esc(t.label)}</span><div class="seg" data-t="${esc(t.key)}">${
+  t.options.map(([v, l]) => `<button type="button" data-v="${esc(v)}" aria-pressed="${v === state.tog[t.key]}">${esc(l)}</button>`).join("")}</div></div>`).join("");
+$("#toggles").querySelectorAll(".seg").forEach((box) => box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+  state.tog[box.dataset.t] = b.dataset.v;
+  box.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  applySlice(); colour(); drawRows(); info(state.sel, !!state.sel);
+})));
 seg("seg-view", D.views.map((v) => [v.key, v.label]), "view", () => { state.sel = null; info(null); state.vb = null; drawMap(); });
 $("#view-box").hidden = D.views.length < 2;
 $("#pick-box").hidden = !D.layers.length;

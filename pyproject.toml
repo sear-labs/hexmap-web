@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hexmap-web"
-version = "0.2.0"
+version = "0.3.0"
 description = "Interactive 3D (deck.gl + MapLibre) and 2D (SVG) web maps of equal-area hexagons, from Python"
 readme = "README.md"
 license = "MIT"

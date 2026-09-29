@@ -14,13 +14,15 @@ from hexmap_web.spec import (
     Outline,
     Ranking,
     Split,
+    Toggle,
     View,
+    slice_key,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
-    "AreaLayer", "Context", "Field", "MapSpec", "Metric", "Outline", "Ranking", "Split", "View",
-    "artifact_form", "colour", "fmt", "geometry", "hexbin", "payload_2d", "payload_3d",
+    "AreaLayer", "Context", "Field", "MapSpec", "Metric", "Outline", "Ranking", "Split", "Toggle", "View",
+    "artifact_form", "colour", "fmt", "geometry", "hexbin", "payload_2d", "payload_3d", "slice_key",
     "write_2d", "write_3d",
 ]

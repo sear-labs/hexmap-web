@@ -118,6 +118,25 @@ class Context:
 
 
 @dataclass
+class Toggle:
+    """A choice that slices the data, e.g. season or time of day; the first option is the default.
+
+    Every combination of the toggles' options is a slice. A column is sliced when the frame holds one
+    column per slice, named `slice_key(key, option, option, ...)` with one option per toggle, in toggle
+    order; a column with no slice columns stays as it is. Sliceable: metrics (and so the cell fields
+    that repeat a metric's key), the split, area-layer fields and rankings.
+    """
+    key: str
+    label: str                        # above the buttons, e.g. "Season"
+    options: list[tuple[str, str]]    # (key, button text), e.g. ("summer", "Summer")
+
+
+def slice_key(key: str, *options: str) -> str:
+    """The column holding `key` for one slice: slice_key("demand", "summer", "evening") -> "demand@summer@evening"."""
+    return "@".join([key, *options])
+
+
+@dataclass
 class MapSpec:
     title: str
     lede: str                         # one or two sentences under the title
@@ -134,3 +153,6 @@ class MapSpec:
     summary: list[tuple[str, str]] = field(default_factory=list)   # (label, formatted value)
     blank_label: str = "No value"     # a cell with `blank` True, e.g. "All land exempt ($0)"
     basemap_credit: str = "Basemap © OpenStreetMap contributors © CARTO."
+    toggles: list[Toggle] = field(default_factory=list)
+    slice_digits: int = 3             # a sliced cell value is rounded to this many significant figures,
+                                      # which keeps a page with many slices small (see page._table)

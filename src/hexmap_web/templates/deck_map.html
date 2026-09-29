@@ -35,6 +35,9 @@ h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; text
 .seg button { flex: 1; border: 0; background: transparent; color: var(--ink-2); font: 500 12.5px var(--ui);
               padding: 6px 4px; border-radius: 5px; cursor: pointer; }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.seg.wrap { flex-wrap: wrap; }
+.seg.wrap button { flex: 1 0 auto; }
+#toggles { display: grid; gap: 13px; }
 select { width: 100%; background: rgba(255, 255, 255, 0.06); color: var(--ink); border: 1px solid var(--glass-edge);
          border-radius: 7px; padding: 6px 8px; font: 500 13px var(--ui); }
 select option { background: #1a1d24; }
@@ -115,7 +118,8 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 
   <aside id="panel" class="card" aria-label="Map controls">
     <div><h1 id="title"></h1><p class="sub" id="sub"></p></div>
-    <div><span class="label">Height and colour</span><div class="seg" id="seg-metric"></div></div>
+    <div><span class="label">Height and colour</span><div class="seg wrap" id="seg-metric"></div></div>
+    <div id="toggles"></div>
     <div id="view-box"><span class="label">Area</span><div class="seg" id="seg-view"></div></div>
     <div id="pick-box"><label class="label" for="pick">Click to inspect</label><select id="pick"></select></div>
     <div id="show-box"><span class="label">Show</span><div class="checks" id="checks"></div></div>
@@ -159,9 +163,26 @@ const state = {
   show: Object.fromEntries([["roads", D.has.roads], ["water", false], ["places", D.has.places],
     ...D.outline_layers.map((o) => [o.key, o.show])]),
   rank: D.rankings.length ? D.rankings[0].key : null, hi: null, sel: null,
+  tog: Object.fromEntries(D.toggles.map((t) => [t.key, t.options[0][0]])),
 };
 const light = () => state.base === "light";
 document.title = D.title;
+
+// ------------------------------------------------------------ slices
+// The slice index counts through the toggles' options, first toggle outermost (as page.py lists them).
+const slice = () => D.toggles.reduce((k, t) => k * t.options.length + t.options.findIndex((o) => o[0] === state.tog[t.key]), 0);
+const sliceText = () => D.toggles.map((t) => t.options.find((o) => o[0] === state.tog[t.key])[1]).join(", ");
+function applySlice() {
+  const k = slice(), T = D.tables;
+  for (const v of D.views) for (const f of v.cells.features) {
+    const p = f.properties;
+    if (p.z) for (const m in p.z) { const j = p.z[m][k]; p.v[m] = T[m].v[j]; p.t[m] = T[m].t[j]; p.c[m] = T[m].c[j]; }
+    if (p.zs !== undefined) p.s = p.zs ? p.zs[k] : null;
+    D.field_metric.forEach((m, i) => { if (m && p.z) p.f[i] = T[m].t[p.z[m][k]]; });
+  }
+  for (const items of Object.values(D.areas)) for (const a of items) if (a.H) { a.h = a.H[k]; a.f = a.F[k]; a.s = a.S[k]; }
+  for (const R of D.rankings) for (const r of R.rows) if (r.V) { r.value = r.V[k]; r.text = r.T[k]; if (r.P) r.parts = r.P[k]; }
+}
 
 function pad() {
   const w = $("#map").clientWidth || innerWidth, h = $("#map").clientHeight || innerHeight;
@@ -220,13 +241,13 @@ function showInfo() {
   if (s.type === "cell") {
     const p = s.p;
     const rows = D.metrics.map((m) => [m.label, p.t[m.key]]).concat(D.cell_fields.map((l, i) => [l, p.f[i]]));
-    html = `<h2>${headline(p)}</h2><div class="kind">One ${esc(VIEW[state.view].noun)}</div>
+    html = `<h2>${headline(p)}</h2><div class="kind">One ${esc(VIEW[state.view].noun)}${D.toggles.length ? " · " + esc(sliceText()) : ""}</div>
       <div class="grid">${rows.map(([k, v]) => `<span class="k">${esc(k)}</span><span class="n">${esc(v)}</span>`).join("")}</div>
       ${p.s ? `<div><span class="label">${esc(D.split.title)}</span>${bar(p.s)}</div>` : ""}
       ${p.w.length ? `<div class="where">${p.w.map((w) => `<span>${esc(w[0])}: ${w[1] ? `<b>${esc(w[1])}</b> (${Math.round(w[2] * 100)}% of the ${esc(VIEW[state.view].noun.split(" ").pop())})` : "<b>none</b>"}</span>`).join("")}</div>` : ""}`;
   } else {
     const a = s.a;
-    html = `<h2>${esc(a.name)}</h2><div class="kind">${esc(a.kind)}</div>
+    html = `<h2>${esc(a.name)}</h2><div class="kind">${esc(a.kind)}${a.H ? " · " + esc(sliceText()) : ""}</div>
       <div><div class="big">${esc(a.h[0])}</div><div class="kind" style="margin-top:0">${esc(a.h[1])}</div></div>
       <div class="grid">${a.f.map(([k, v]) => `<span class="k">${esc(k)}</span><span class="n">${esc(v)}</span>`).join("")}</div>
       ${a.s ? `<div><span class="label">${esc(D.split.title)}</span>${bar(a.s)}</div>` : ""}
@@ -256,7 +277,7 @@ function text(id, data, pos, txt, colour, size = 13, weight = 700) {
 const ringsOf = (items) => items.flatMap((a) => a.rings.map((r) => ({ r, a })));
 
 function layers() {
-  const v = VIEW[state.view], m = state.metric, mx = v.max[m] || 1, tall = v.height * state.exag;
+  const v = VIEW[state.view], m = state.metric, mx = v.max[m] || 1, tall = v.height * state.exag, k = slice();
   const line = light() ? [24, 26, 32] : [226, 230, 236];
   const inspecting = state.pick !== "cell";
   const L = [];
@@ -277,7 +298,7 @@ function layers() {
     getFillColor: (f) => f.properties.blank ? (light() ? [200, 199, 194, 230] : [74, 77, 84, 230]) : f.properties.c[m],
     material: { ambient: 0.55, diffuse: 0.5, shininess: 20, specularColor: [30, 30, 30] },
     transitions: { getElevation: { duration: 650 } },
-    updateTriggers: { getElevation: [m, state.exag, state.view], getFillColor: [m, state.base], getLineColor: state.base } }));
+    updateTriggers: { getElevation: [m, state.exag, state.view, k], getFillColor: [m, state.base, k], getLineColor: state.base } }));
   if (state.sel && state.sel.type === "cell") {
     const hit = v.cells.features.find((f) => f.properties === state.sel.p);
     if (hit) L.push(new deck.PathLayer({ id: "cell-sel", data: [hit.geometry.coordinates[0]], getPath: (p) => p,
@@ -315,7 +336,7 @@ function drawLegend() {
   g.fillStyle = grad; g.fillRect(0, 0, c.width, c.height);
   $("#ticks").innerHTML = lg.ticks.map((t, i) => `<span style="left:${(t * 100).toFixed(2)}%">${esc(lg.labels[i])}</span>`).join("");
   const M = METRIC[state.metric];
-  $("#legend-t").textContent = `${M.label}: ${M.note}; ${M.height}`;
+  $("#legend-t").textContent = `${M.label}${M.sliced ? ` (${sliceText()})` : ""}: ${M.note}; ${M.height}`;
 }
 
 function drawRows() {
@@ -367,6 +388,14 @@ $("#title").textContent = D.title;
 const setSub = () => { $("#sub").textContent = `${VIEW[state.view].description}. Hover a column; click one for details.`; };
 setSub();
 seg("seg-metric", D.metrics.map((m) => [m.key, m.label]), "metric");
+$("#toggles").hidden = !D.toggles.length;
+$("#toggles").innerHTML = D.toggles.map((t) => `<div><span class="label">${esc(t.label)}</span><div class="seg wrap" data-t="${esc(t.key)}">${
+  t.options.map(([v, l]) => `<button type="button" data-v="${esc(v)}" aria-pressed="${v === state.tog[t.key]}">${esc(l)}</button>`).join("")}</div></div>`).join("");
+$("#toggles").querySelectorAll(".seg").forEach((box) => box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+  state.tog[box.dataset.t] = b.dataset.v;
+  box.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  applySlice(); showInfo(); render();
+})));
 seg("seg-view", D.views.map((v) => [v.key, v.label]), "view", () => {
   setSub(); if (state.sel && state.sel.type === "cell") { state.sel = null; showInfo(); }
   frame(VIEW[state.view].bounds, { duration: 1400 });

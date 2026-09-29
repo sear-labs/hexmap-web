@@ -202,3 +202,96 @@ def test_a_sequential_metric_keeps_its_default_note(example):
     _, p3, _ = example
     m = _data(p3.read_text(encoding="utf-8"))["metrics"][0]
     assert m["note"] == "darker is higher (log scale)" and m["height"] == "height is proportional"
+
+
+# ------------------------------------------------------------------ toggles and the signed log scale (0.3.0)
+
+def test_signed_log_scale_is_symmetric_and_marks_its_ends():
+    cm, norm = colour.diverging(), colour.signed_log_norm(16, 4096)
+    lg = colour.legend(cm, norm, fmt.signed(" MW", 0))
+    assert lg["ticks"] == [0.0, 0.2, 0.5, 0.8, 1.0]                     # -4096, -256, 0, 256, 4096
+    assert lg["labels"][0] == "≤" + fmt.MINUS + "4096 MW" and lg["labels"][2] == "0 MW" and lg["labels"][-1] == "≥+4096 MW"
+    lo, mid, hi, beyond = colour.rgb([-4096, 0, 4096, 1e9], cm, norm)
+    assert colour.hex_colour(lo) == colour.DIVERGING[0] and colour.hex_colour(hi) == colour.DIVERGING[2] and beyond == hi
+    centre = [int(colour.DIVERGING[1][i:i + 2], 16) for i in (1, 3, 5)]
+    assert max(abs(a - b) for a, b in zip(mid, centre, strict=True)) <= 2  # zero is the pale centre (256-step lookup)
+    assert norm(1) < norm(16) < norm(256) and norm(-256) == pytest.approx(1 - norm(256))
+    assert "log scale beyond" in colour.note(norm, fmt.signed(" MW", 0))
+    with pytest.raises(ValueError):
+        colour.signed_log_norm(10, 5)
+
+
+def test_long_log_legends_are_thinned_but_keep_both_ends():
+    for lo, hi in [(0.5, 1024), (2, 2048), (1, 512), (0.25, 64), (2000, 64000)]:
+        t = colour.ticks(colour.log_norm(lo, hi))
+        assert t[0] == lo and t[-1] == hi and len(t) <= colour.MAX_LOG_LABELS, (lo, hi, t)
+    assert colour.ticks(colour.log_norm(1, 32)) == [1, 2, 4, 8, 16, 32]              # short scales keep every doubling
+
+
+def test_slice_key():
+    assert hw.slice_key("net", "summer", "evening") == "net@summer@evening" and hw.slice_key("x") == "x"
+
+
+@pytest.fixture(scope="module")
+def toggled(tmp_path_factory):
+    sys.path.insert(0, str(ROOT / "examples"))
+    import synthetic_toggles
+
+    out = tmp_path_factory.mktemp("tog")
+    p3, p2 = synthetic_toggles.main(out)
+    return synthetic_toggles, p3, p2
+
+
+def test_every_slice_can_be_read_back_from_the_page(toggled):
+    """For every slice and cell, the table entry the page would pick is the binned value, to 3 significant figures."""
+    ex, p3, p2 = toggled
+    d3, d2 = _data(p3.read_text(encoding="utf-8")), _data(p2.read_text(encoding="utf-8"))
+    cells = ex.cells_for(ex.points()).reset_index(drop=True)
+    combos = [(s, t) for s, _ in ex.SEASONS for t, _ in ex.TIMES]
+    assert [t["key"] for t in d3["toggles"]] == ["season", "time"] and len(combos) == 12
+    assert d3["field_metric"] == [None, "net"] and all(m["sliced"] for m in d3["metrics"])
+    for d, feats in ((d3, [f["properties"] for f in d3["views"][0]["cells"]["features"]]), (d2, d2["views"][0]["cells"])):
+        assert len(feats) == len(cells)
+        for key in ("use", "supply", "net"):
+            T = d["tables"][key]
+            assert len(T["v"]) == len(T["t"]) == len(T["c"]) and T["v"][-1] is None
+            for k, (s, t) in enumerate(combos):                 # k counts as the page does: season outermost
+                got = np.array([T["v"][p["z"][key][k]] for p in feats], dtype=float)
+                want = cells[hw.slice_key(key, s, t)].to_numpy()
+                assert np.allclose(got, want, rtol=5e-3, atol=1e-9), (key, s, t)
+            assert [p["v"][key] for p in feats] == [T["v"][p["z"][key][0]] for p in feats]   # shown at slice 0
+            assert [p["t"][key] for p in feats] == [T["t"][p["z"][key][0]] for p in feats]
+    net = cells[[hw.slice_key("net", s, t) for s, t in combos]].to_numpy()
+    assert (net < 0).any() and (net > 0).any()                                            # both signs, both colours
+    assert d3["views"][0]["max"]["net"] == pytest.approx(np.abs(net).max())                 # heights compare across slices
+    k = combos.index(("summer", "midday"))
+    props = [f["properties"] for f in d3["views"][0]["cells"]["features"]]
+    shares = [p["zs"][k] for p in props if p["zs"] and p["zs"][k]]
+    assert shares and all(sum(s) == pytest.approx(1, abs=0.02) for s in shares)
+
+
+def test_a_page_without_toggles_is_unchanged(example):
+    _, p3, _ = example
+    d = _data(p3.read_text(encoding="utf-8"))
+    p = d["views"][0]["cells"]["features"][0]["properties"]
+    assert d["toggles"] == [] and d["tables"] == {} and "z" not in p and "zs" not in p
+    assert not any(m["sliced"] for m in d["metrics"])
+
+
+def _toggle_spec(cells, **kw):
+    side = hexbin.hex_side(1e6)
+    return hw.MapSpec(title="t", lede="", footnote="", crs=32614,
+                      metrics=[hw.Metric("a", "A", "a", colour.log_norm(1, 8), fmt.number, fmt.number)],
+                      views=[hw.View("v", "V", "v", cells, side, box(0, 0, 1, 1))],
+                      toggles=[hw.Toggle("s", "S", [("x", "X"), ("y", "Y")])], **kw)
+
+
+def test_half_sliced_columns_and_unsliced_card_fields_are_refused():
+    base = pd.DataFrame({"q": [0, 1], "r": [0, 0], "b": [1.0, 2.0]})
+    with pytest.raises(ValueError, match="sliced for some slices"):
+        page.payload_2d(_toggle_spec(base.assign(**{"a@x": [1.0, 2.0]})))
+    both = base.assign(**{"a@x": [1.0, 2.0], "a@y": [3.0, 4.0], "b@x": [1.0, 1.0], "b@y": [2.0, 2.0]})
+    with pytest.raises(ValueError, match="must repeat a sliced metric"):
+        page.payload_2d(_toggle_spec(both, cell_fields=[hw.Field("b", "B")]))
+    d = page.payload_2d(_toggle_spec(both, cell_fields=[hw.Field("a", "A")]))
+    assert [c["z"]["a"] for c in d["views"][0]["cells"]] == [[0, 2], [1, 3]] and d["tables"]["a"]["v"] == [1, 2, 3, 4, None]
