@@ -31,14 +31,21 @@ class Field:
 
 @dataclass
 class Metric:
-    """A quantity that colours the hexagons (and sets their height on the 3D map)."""
+    """A quantity that colours the hexagons (and sets their height on the 3D map).
+
+    Sequential (`colour.log_norm`, the default kind) or diverging (`colour.diverging_norm` with
+    `cmap=colour.diverging()`), for a difference that can be either sign. On the 3D map a column's
+    height is the value's size either way; its colour gives the sign. A missing value (NaN) is grey.
+    """
     key: str                          # column in every view's cells
     label: str                        # button text, e.g. "Tax per acre"
     noun: str                         # after a value on a card, e.g. "tax per acre"
-    norm: Any                         # colour.log_norm(lo, hi)
+    norm: Any                         # colour.log_norm(lo, hi) or colour.diverging_norm(lo, hi)
     fmt: Callable[[Any], str] = F.money
     tick_fmt: Callable[[Any], str] = F.money_short
-    cmap: str = "inferno"
+    cmap: Any = "inferno"             # a matplotlib name, or a Colormap such as colour.diverging()
+    note: str = ""                    # what the colours mean, after the label on the legend;
+                                      # empty: colour.note (e.g. "darker is higher (log scale)")
 
 
 @dataclass

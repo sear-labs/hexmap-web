@@ -273,7 +273,7 @@ function layers() {
   L.push(new deck.GeoJsonLayer({ id: "cells", data: v.cells, extruded: true, filled: true, stroked: false,
     wireframe: true, getLineColor: light() ? [0, 0, 0, 28] : [255, 255, 255, 34],
     pickable: !inspecting, autoHighlight: !inspecting, highlightColor: [249, 142, 9, 170], opacity: inspecting ? 0.35 : 1,
-    getElevation: (f) => (f.properties.blank || f.properties.v[m] == null ? 0 : (f.properties.v[m] / mx) * tall),
+    getElevation: (f) => (f.properties.blank || f.properties.v[m] == null ? 0 : (Math.abs(f.properties.v[m]) / mx) * tall),
     getFillColor: (f) => f.properties.blank ? (light() ? [200, 199, 194, 230] : [74, 77, 84, 230]) : f.properties.c[m],
     material: { ambient: 0.55, diffuse: 0.5, shininess: 20, specularColor: [30, 30, 30] },
     transitions: { getElevation: { duration: 650 } },
@@ -314,7 +314,8 @@ function drawLegend() {
   lg.stops.forEach((s, i) => grad.addColorStop(i / (lg.stops.length - 1), s));
   g.fillStyle = grad; g.fillRect(0, 0, c.width, c.height);
   $("#ticks").innerHTML = lg.ticks.map((t, i) => `<span style="left:${(t * 100).toFixed(2)}%">${esc(lg.labels[i])}</span>`).join("");
-  $("#legend-t").textContent = `${METRIC[state.metric].label}: darker is higher (log scale); height is proportional`;
+  const M = METRIC[state.metric];
+  $("#legend-t").textContent = `${M.label}: ${M.note}; ${M.height}`;
 }
 
 function drawRows() {

@@ -47,6 +47,13 @@ def _num(v):
     return None if v is None or (isinstance(v, float) and not math.isfinite(v)) else float(v)
 
 
+def _abs_max(values) -> float:
+    """The tallest column's value: the largest size, either sign, ignoring missing values."""
+    v = np.abs(np.asarray(values, dtype=float))
+    v = v[np.isfinite(v)]
+    return float(v.max()) if v.size else 0.0
+
+
 def _shares(row, split) -> list[float] | None:
     if split is None:
         return None
@@ -63,7 +70,10 @@ def _common(spec: MapSpec) -> dict:
     for m in spec.metrics:
         cm = colour.colormap(m.cmap)
         metrics.append({"key": m.key, "label": m.label, "noun": m.noun,
-                        "legend": colour.legend(cm, m.norm, m.tick_fmt)})
+                        "legend": colour.legend(cm, m.norm, m.tick_fmt),
+                        "note": m.note or colour.note(m.norm, m.tick_fmt),
+                        "height": ("height is the size of the difference, either sign" if colour.is_diverging(m.norm)
+                                   else "height is proportional")})
     return {
         "title": spec.title, "lede": spec.lede, "footnote": spec.footnote,
         "credit": spec.basemap_credit, "blank_label": spec.blank_label,
@@ -144,7 +154,7 @@ def payload_3d(spec: MapSpec) -> dict:
         d["views"].append({
             "key": v.key, "label": v.label, "description": v.description, "noun": v.cell_noun,
             "bounds": b, "height": v.height, "places": v.place_labels,
-            "max": {m.key: float(np.nanmax(cells[m.key])) for m in spec.metrics},
+            "max": {m.key: _abs_max(cells[m.key]) for m in spec.metrics},
             "cells": {"type": "FeatureCollection", "features": feats},
             "frame": rings_ll(v.frame, 100)})
     d["areas"] = {}
