@@ -2,6 +2,20 @@
 
 Semantic versioning. The public API is `hexmap_web.__all__`.
 
+## 0.3.1 (2026-10-01)
+
+The 3D page credits its basemap on the map itself. Nothing else changes: a 0.3.0 spec draws the
+same pages, with the same data.
+
+- OpenStreetMap and CARTO require their credit where the map is shown. Until now it appeared only in
+  the panel's footnote, at the bottom of a scrolling panel. MapLibre's own credit control was off,
+  because its stylesheet is not loaded (the Artifact host allows stylesheets from Google Fonts
+  only).
+- The new strip sits in the bottom-right corner and links to each copyright page
+  (`page.BASEMAP_CREDIT`). It is hidden when the page falls back to a plain ground, which draws
+  no basemap. The card and the phone-width legend sit 10 px higher to clear it.
+- The 2D page draws no basemap and is unchanged.
+
 ## 0.3.0 (2026-09-28)
 
 Toggles, for data that changes with a choice such as season or time of day, and a signed log

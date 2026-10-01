@@ -38,7 +38,7 @@ MapLibre basemap) and a 2D map (zoomable SVG), each one self-contained HTML file
 ## Install
 
 ```bash
-pip install "hexmap-web @ git+https://github.com/sear-labs/hexmap-web.git@v0.3.0"
+pip install "hexmap-web @ git+https://github.com/sear-labs/hexmap-web.git@v0.3.1"
 ```
 
 The repo is public, so this needs no GitHub sign-in. Pin a tag, not a branch. For development:

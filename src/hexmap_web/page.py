@@ -29,6 +29,10 @@ DECK_GL = "https://cdn.jsdelivr.net/npm/deck.gl@9.4.0/dist.min.js"
 MAPLIBRE = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js"
 BASEMAPS = {"dark": "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
             "light": "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"}
+# Both basemaps are CARTO styles drawn from OpenStreetMap data, and both require this credit on
+# the map itself. The 3D page shows it in the map's corner whenever a basemap is drawn.
+BASEMAP_CREDIT = [["© OpenStreetMap contributors", "https://www.openstreetmap.org/copyright"],
+                  ["© CARTO", "https://carto.com/attributions"]]
 
 
 def clean(o):
@@ -397,7 +401,7 @@ def render(template: str, data: dict, out: str | Path, wrap: bool = True) -> Pat
     blob = json.dumps(clean(data), separators=(",", ":"), allow_nan=False).replace("</", "<\\/")
     for key, value in (("__TITLE__", html.escape(str(data.get("title", "Map")))),
                        ("__DECK_GL__", DECK_GL), ("__MAPLIBRE__", MAPLIBRE),
-                       ("__BASEMAPS__", json.dumps(BASEMAPS))):
+                       ("__BASEMAPS__", json.dumps(BASEMAPS)), ("__BASEMAP_CREDIT__", json.dumps(BASEMAP_CREDIT))):
         page = page.replace(key, value)
     if page.count("/*__DATA__*/null") != 1:
         raise ValueError(f"{template}: expected exactly one /*__DATA__*/null placeholder")
