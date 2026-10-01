@@ -128,6 +128,18 @@ def test_example_pages_are_complete_and_conserve_the_data(example):
     assert d3["rankings"][0]["rows"] and d3["roads"] and d3["water"] and d3["places"]
 
 
+def test_3d_page_credits_the_basemap_on_the_map(example):
+    """OpenStreetMap and CARTO require their credit on the map; the panel footnote is not enough."""
+    _, p3, p2 = example
+    s = p3.read_text(encoding="utf-8")
+    # booleans, not `in` on the page: pytest's diff of a failed `in` on a 600 KB string never finishes
+    found = {k: k in s for k in ('<div id="attrib" hidden></div>', "https://www.openstreetmap.org/copyright",
+                                 "https://carto.com/attributions", "__BASEMAP_CREDIT__")}
+    assert found == {'<div id="attrib" hidden></div>': True, "https://www.openstreetmap.org/copyright": True,
+                     "https://carto.com/attributions": True, "__BASEMAP_CREDIT__": False}
+    assert ('id="attrib"' in p2.read_text(encoding="utf-8")) is False  # the 2D page draws no basemap
+
+
 def test_artifact_form_strips_only_the_shell(example):
     _, p3, _ = example
     s = page.artifact_form(p3)

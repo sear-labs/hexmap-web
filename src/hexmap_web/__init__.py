@@ -19,7 +19,7 @@ from hexmap_web.spec import (
     slice_key,
 )
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 __all__ = [
     "AreaLayer", "Context", "Field", "MapSpec", "Metric", "Outline", "Ranking", "Split", "Toggle", "View",
